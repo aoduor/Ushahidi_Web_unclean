@@ -81,6 +81,12 @@ if (@!is_writable($config["log_directory"])) {
 }
 
 /**
+ * The scheduler removes old logs. Set to false to disable or an int for the
+ * number of days to keep old logs.
+ */
+$config['log_cleanup_days_old'] = 7;
+
+/**
  * Enable or disable displaying of Kohana error pages. This will not affect
  * logging. Turning this off will disable ALL error pages.
  */
@@ -114,6 +120,16 @@ $config['allow_openid'] = FALSE;
 $config['extension_prefix'] = 'MY_';
 
 /**
+ * Check if we should launch the installer or not
+ */
+$config['installer_check'] = TRUE;
+
+/**
+ * Output scheduler JS in footer
+ */
+$config['output_scheduler_js'] = TRUE;
+
+/**
  * Additional resource paths, or "modules". Each path can either be absolute
  * or relative to the docroot. Modules can include any resource that can exist
  * in your application directory, configuration files, controllers, views, etc.
@@ -121,6 +137,7 @@ $config['extension_prefix'] = 'MY_';
 $config['modules'] = array
 (
 	MODPATH.'auth',      // Authentication
+	MODPATH.'csrf',      // CSRF Handling
 	// MODPATH.'forge',     // Form generation
 	// MODPATH.'formation',     // Form generation
 	// MODPATH.'kodoc',     // Self-generating documentation

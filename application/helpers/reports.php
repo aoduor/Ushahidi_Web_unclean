@@ -32,6 +32,7 @@ class reports_Core {
 	 */
 	public static function validate(array & $post, $admin_section = FALSE)
 	{
+
 		// Exception handling
 		if ( ! isset($post) OR ! is_array($post))
 			return FALSE;
@@ -39,6 +40,16 @@ class reports_Core {
 		// Create validation object
 		$post = Validation::factory($post)
 				->pre_filter('trim', TRUE);
+		
+		// CSRF validation before proceeding with the rest of the validation
+		if (in_array(MODPATH.'csrf', Kohana::config('config.modules')))
+		{
+			if ( ! isset($post['form_auth_token']) OR  ! csrf::valid($post['form_auth_token']))
+			{
+				$post->add_error('incident_title','csrf');
+				return FALSE;
+			}
+		}
 		
 		$post->add_rules('incident_title','required', 'length[3,200]');
 		$post->add_rules('incident_description','required');
@@ -373,8 +384,10 @@ class reports_Core {
 					if ($geometry)
 					{
 						// 	Format the SQL string
-						$sql = sprintf($sql, $incident->id, $geometry, $label, $comment, $color, $strokewidth);
-						
+						$sql = "INSERT INTO ".Kohana::config('database.default.table_prefix')."geometry "
+							. "(incident_id, geometry, geometry_label, geometry_comment, geometry_color, geometry_strokewidth)"
+							. "VALUES(".$incident->id.", GeomFromText('".$geometry."'), '".$label."', '".$comment."', '".$color."', ".$strokewidth.")";
+						Kohana::log('debug', $sql);
 						// Execute the query
 						$db->query($sql);
 					}
@@ -574,7 +587,8 @@ class reports_Core {
 	 *	- media
 	 *	- location radius
 	 *
-	 * @param $paginate Optionally paginate the incidents - Default is FALSE
+	 * @param bool $paginate Optionally paginate the incidents - Default is FALSE
+	 * @param int $items_per_page No. of items to show per page
 	 * @return Database_Result
 	 */
 	public static function fetch_incidents($paginate = FALSE, $items_per_page = 0)
@@ -608,7 +622,7 @@ class reports_Core {
 		// 
 		// Check for the category parameter
 		// 
-		if ( isset($url_data['c']) AND !is_array($url_data['c']) AND intval($url_data['c']) > 0)
+		if (isset($url_data['c']) AND ! is_array($url_data['c']) AND intval($url_data['c']) > 0)
 		{
 			// Get the category ID
 			$category_id = intval($_GET['c']);
@@ -731,13 +745,8 @@ class reports_Core {
 			);
 		}
 		
-		/**
-		 * ---------------------------
-		 * NOTES: E.Kala July 13, 2011
-		 * ---------------------------
-		 * Additional checks for date parameters specified in timestamp format
-		 * This only affects those submitted from the main page
-		 */
+		// Additional checks for date parameters specified in timestamp format
+		// This only affects those submitted from the main page
 		
 		// Start Date
 		if (isset($_GET['s']) AND intval($_GET['s']) > 0)
@@ -775,7 +784,8 @@ class reports_Core {
 			if (count($media_types) > 0)
 			{
 				array_push(self::$params, 
-					'i.id IN (SELECT DISTINCT incident_id FROM '.$table_prefix.'media WHERE media_type IN ('.implode(",", $media_types).'))'
+					'i.id IN (SELECT DISTINCT incident_id FROM '
+						.$table_prefix.'media WHERE media_type IN ('.implode(",", $media_types).'))'
 				);
 			}
 			
@@ -789,7 +799,8 @@ class reports_Core {
 			if (intval($media_type) > 0)
 			{
 				array_push(self::$params, 
-					'i.id IN (SELECT DISTINCT incident_id FROM '.$table_prefix.'media WHERE media_type = '.$media_type.')'
+					'i.id IN (SELECT DISTINCT incident_id FROM '
+						.$table_prefix.'media WHERE media_type = '.$media_type.')'
 				);
 			}
 		}
@@ -854,18 +865,25 @@ class reports_Core {
 			// Make sure there was some valid input in there
 			if ($i > 0)
 			{
-				// I run a database query here because it's way faster to get the valid IDs in a seperate database query than it is
-				//to run this query nested in the main query. 
+				// Get the valid IDs - faster in a separate query as opposed
+				// to a subquery within the main query
 				$db = new Database();
-				$rows = $db->query('SELECT DISTINCT incident_id FROM '.$table_prefix.'form_response WHERE '.$where_text);
+
+				$rows = $db->query('SELECT DISTINCT incident_id FROM '
+				    .$table_prefix.'form_response WHERE '.$where_text);
+				
 				$incident_ids = '';
-				foreach($rows as $row)
+				foreach ($rows as $row)
 				{
-					if($incident_ids != ''){$incident_ids .= ',';}
+					if ($incident_ids != '')
+					{
+							$incident_ids .= ',';
+					}
+
 					$incident_ids .= $row->incident_id;
 				}
 				//make sure there are IDs found
-				if($incident_ids != '')
+				if ($incident_ids != '')
 				{
 					array_push(self::$params, 'i.id IN ('.$incident_ids.')');
 				}
@@ -889,7 +907,9 @@ class reports_Core {
 		if ($paginate)
 		{
 			// Set up pagination
-			$page_limit = (intval($items_per_page) > 0)? $items_per_page : intval (Kohana::config('settings.items_per_page'));
+			$page_limit = (intval($items_per_page) > 0)
+			    ? $items_per_page 
+			    : intval(Kohana::config('settings.items_per_page'));
 			
 			$pagination = new Pagination(array(
 					'style' => 'front-end-reports',
