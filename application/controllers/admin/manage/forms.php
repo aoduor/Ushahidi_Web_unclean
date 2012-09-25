@@ -21,7 +21,7 @@ class Forms_Controller extends Admin_Controller {
 		$this->template->this_page = 'manage';
 		
 		// If user doesn't have access, redirect to dashboard
-		if ( ! admin::permissions($this->user, "manage"))
+		if ( ! $this->auth->has_permission("manage"))
 		{
 			url::redirect(url::site().'admin/dashboard');
 		}
@@ -33,7 +33,7 @@ class Forms_Controller extends Admin_Controller {
     */
 	public function index()
 	{
-		$this->template->content = new View('admin/forms');
+		$this->template->content = new View('admin/manage/forms/main');
 		
 		// Setup and initialize form field names
 		$form = array
@@ -46,7 +46,8 @@ class Forms_Controller extends Admin_Controller {
 			'field_type' => ''
 	    );
 	
-		// Copy the form as errors, so the errors will be stored with keys corresponding to the form field names
+		// Copy the form as errors, so the errors will be stored with keys 
+		// corresponding to the form field names
 	    $errors = $form;
 		$form_error = FALSE;
 		$form_saved = FALSE;
@@ -85,7 +86,7 @@ class Forms_Controller extends Admin_Controller {
 					// Delete Action
 					$custom_form->delete( $form_id );
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.deleted'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.deleted'));
 				}
 				elseif ($post->action == 'h')
 				{ 
@@ -97,7 +98,7 @@ class Forms_Controller extends Admin_Controller {
 						$custom_form->form_active = ($custom_form->form_active == 1)? 0: 1;
 						$custom_form->save();
 						$form_saved = TRUE;
-						$form_action = strtoupper(Kohana::lang('ui_admin.modified'));
+						$form_action = utf8::strtoupper(Kohana::lang('ui_admin.modified'));
 					}
 				}
 				else
@@ -107,7 +108,7 @@ class Forms_Controller extends Admin_Controller {
 					$custom_form->form_description = $post->form_description;
 					$custom_form->save();
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.created_edited'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.created_edited'));
 				}
 				
 				// Empty $form array
@@ -162,7 +163,7 @@ class Forms_Controller extends Admin_Controller {
 		$this->template->content->errors = $errors;
 
         // Javascript Header
-        $this->template->js = new View('admin/forms_js');
+        $this->template->js = new View('admin/manage/forms/forms_js');
 		$this->template->js->form_id = $form_id;
 		$this->template->form_error = $form_error;
 	}
@@ -410,8 +411,8 @@ class Forms_Controller extends Admin_Controller {
 				{
 					// Move down the fields whose position value is greater
 					// than that of the selected field 
-					$sql = "UPDATE %sform_field SET field_position = %d WHERE field_position = %d";
-					$this->db->query(sprintf($sql, $this->table_prefix, $current_position, $current_position-1));
+					$sql = "UPDATE `".$this->table_prefix."form_field` SET field_position = ? WHERE field_position = ?";
+					$this->db->query($sql, $current_position, $current_position-1);
 
 					// Move the selected field upwards
 					$field->field_position = $current_position - 1;
@@ -420,8 +421,8 @@ class Forms_Controller extends Admin_Controller {
 				elseif ($field_position == 'd' AND $current_position != $total_fields)
 				{ 
 					// Move all other form fields upwards
-					$sql = "UPDATE %sform_field SET field_position = %d WHERE field_position = %d";
-					$this->db->query(sprintf($sql, $this->table_prefix,  $current_position, $current_position + 1));
+					$sql = "UPDATE `".$this->table_prefix."form_field` SET field_position = ? WHERE field_position = ?";
+					$this->db->query($sql,  $current_position, $current_position + 1);
 					
 					// Move the selected field downwards - increase its field position in the database
 					$field->field_position = $current_position + 1;
@@ -548,7 +549,7 @@ class Forms_Controller extends Admin_Controller {
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .="<div class=\"forms_item\">";
 		$html .="	<div id=\"form_loading_".$form_id."\" class=\"forms_fields_loading\"></div>";
-		$html .="	<input type=\"image\" src=\"".url::base()."media/img/admin/btn-save.gif\" />";
+		$html .="<input type=\"submit\" class=\"save-rep-btn\" value=\"".Kohana::lang('ui_main.save')."\" />";
 		$html .="</div>";
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .=$this->_get_selector_js($form_id);
@@ -660,7 +661,7 @@ class Forms_Controller extends Admin_Controller {
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .="<div class=\"forms_item\">";
 		$html .="	<div id=\"form_loading_".$form_id."\" class=\"forms_fields_loading\"></div>";
-		$html .="	<input type=\"image\" src=\"".url::base()."media/img/admin/btn-save.gif\" />";
+		$html .="<input type=\"submit\" class=\"save-rep-btn\" value=\"".Kohana::lang('ui_main.save')."\" />";
 		$html .="</div>";
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .=$this->_get_selector_js($form_id);
@@ -777,7 +778,7 @@ class Forms_Controller extends Admin_Controller {
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .="<div class=\"forms_item\">";
 		$html .="	<div id=\"form_loading_".$form_id."\" class=\"forms_fields_loading\"></div>";
-		$html .="	<input type=\"image\" src=\"".url::base()."media/img/admin/btn-save.gif\" />";
+		$html .="<input type=\"submit\" class=\"save-rep-btn\" value=\"".Kohana::lang('ui_main.save')."\" />";
 		$html .="</div>";
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .=$this->_get_selector_js($form_id);
@@ -854,7 +855,7 @@ class Forms_Controller extends Admin_Controller {
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .="<div class=\"forms_item\">";
 		$html .="	<div id=\"form_loading_".$form_id."\" class=\"forms_fields_loading\"></div>";
-		$html .="	<input type=\"image\" src=\"".url::base()."media/img/admin/btn-save.gif\" />";
+		$html .="<input type=\"submit\" class=\"save-rep-btn\" value=\"".Kohana::lang('ui_main.save')."\" />";
 		$html .="</div>";
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .=$this->_get_selector_js($form_id);
@@ -896,7 +897,7 @@ class Forms_Controller extends Admin_Controller {
 		$values_prompt = (intval($type) == 7)? Kohana::lang('ui_admin.dropdown_choices') : Kohana::lang('ui_admin.field_choices');
 		
 		// Tooltip display value
-		$tooltip = (intval($type) == 7)? Kohana::lang('tooltips.dropdown_choices') : Kohana::lang('tooltips.default_value');
+		$tooltip = (intval($type) == 7) ? Kohana::lang('tooltips.dropdown_choices'): (intval($type) == 5)? Kohana::lang('tooltips.radio_choices'): Kohana::lang('tooltips.default_value');
 		
 		$html = "<input type=\"hidden\" name=\"form_id\" id=\"form_id\" value=\"".$form_id."\">"
 			. "<input type=\"hidden\" name=\"field_id\" id=\"field_id\" value=\"".$field_id."\">"
@@ -930,7 +931,7 @@ class Forms_Controller extends Admin_Controller {
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .="<div class=\"forms_item\">";
 		$html .="	<div id=\"form_loading_".$form_id."\" class=\"forms_fields_loading\"></div>";
-		$html .="	<input type=\"image\" src=\"".url::base()."media/img/admin/btn-save.gif\" />";
+		$html .="<input type=\"submit\" class=\"save-rep-btn\" value=\"".Kohana::lang('ui_main.save')."\" />";
 		$html .="</div>";
 		$html .="<div style=\"clear:both;\"></div>";
 		$html .=$this->_get_selector_js($form_id);

@@ -23,7 +23,7 @@ class Sharing_Controller extends Admin_Controller
 		$this->template->this_page = 'settings';
 		
 		// If user doesn't have access, redirect to dashboard
-		if ( ! admin::permissions($this->user, "manage"))
+		if ( ! $this->auth->has_permission("manage"))
 		{
 			url::redirect(url::site().'admin/dashboard');
 		}
@@ -32,7 +32,7 @@ class Sharing_Controller extends Admin_Controller
 	
 	function index()
 	{
-		$this->template->content = new View('admin/sharing');
+		$this->template->content = new View('admin/manage/sharing/main');
 		$this->template->content->title = Kohana::lang('ui_admin.settings');
 		
 		// What to display
@@ -81,11 +81,13 @@ class Sharing_Controller extends Admin_Controller
 			$post = Validation::factory($_POST);
 			
 			 //  Add some filters
-	        $post->pre_filter('trim', TRUE);
+			$post->pre_filter('trim', TRUE);
 	
 			// Add Action
-			if ($post->action == 'a')		
+			if ($post->action == 'a')
 			{
+				// Clean the url before we do anything else
+				$post->sharing_url = sharing_helper::clean_url($post->sharing_url);
 				// Add some rules, the input field, followed by a list of checks, carried out in order
 				$post->add_rules('sharing_name','required', 'length[3,150]');
 				$post->add_rules('sharing_url','required', 'url', 'length[3,255]');
@@ -104,7 +106,7 @@ class Sharing_Controller extends Admin_Controller
 				{ 
 					$sharing->delete( $sharing_id );
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.deleted'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.deleted'));
 				}
 				
 				// Hide Action
@@ -115,7 +117,7 @@ class Sharing_Controller extends Admin_Controller
 						$sharing->sharing_active = 0;
 						$sharing->save();
 						$form_saved = TRUE;
-						$form_action = strtoupper(Kohana::lang('ui_main.hidden'));
+						$form_action = utf8::strtoupper(Kohana::lang('ui_main.hidden'));
 					}	
 				}
 				
@@ -127,61 +129,62 @@ class Sharing_Controller extends Admin_Controller
 						$sharing->sharing_active = 1;
 						$sharing->save();
 						$form_saved = TRUE;
-						$form_action = strtoupper(Kohana::lang('ui_admin.shown'));
+						$form_action = utf8::strtoupper(Kohana::lang('ui_admin.shown'));
 					}
 				}
 				
 				// Save Action
-				else
+				// Must check for action here otherwise passing no action param would also means no validation
+				// See validation code above.
+				elseif ($post->action == 'a')
 				{ 
 					$sharing->sharing_name = $post->sharing_name;
-					$sharing->sharing_url = $this->_clean_urls($post->sharing_url);
+					$sharing->sharing_url = $post->sharing_url;
 					$sharing->sharing_color = $post->sharing_color;
 					$sharing->save();
 					
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.created_edited'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.created_edited'));
 				}
 				
 			}
 			else
 			{
 				// Repopulate the form fields
-	            $form = arr::overwrite($form, $post->as_array());
-	
-               // Populate the error fields, if any
-                $errors = arr::overwrite($errors, $post->errors('sharing'));
-                $form_error = TRUE;
+				$form = arr::overwrite($form, $post->as_array());
+
+				// Populate the error fields, if any
+				$errors = arr::overwrite($errors, $post->errors('sharing'));
+				$form_error = TRUE;
 			}
 		}
 		
-		
 		// Pagination
-        $pagination = new Pagination(array(
+		$pagination = new Pagination(array(
 			'query_string' => 'page',
 			'items_per_page' => $this->items_per_page,
 			'total_items'  => ORM::factory('sharing')->where($filter)->count_all()
-			));
+		));
 		
-        $shares = ORM::factory('sharing')
+		$shares = ORM::factory('sharing')
 			->where($filter)
 			->orderby('sharing_name', 'asc')
 			->find_all($this->items_per_page,  $pagination->sql_offset);
 		
 		$this->template->content->form_error = $form_error;
-        $this->template->content->form_saved = $form_saved;
+		$this->template->content->form_saved = $form_saved;
 		$this->template->content->form_action = $form_action;
-        $this->template->content->pagination = $pagination;
-        $this->template->content->total_items = $pagination->total_items;
-        $this->template->content->shares = $shares;
+		$this->template->content->pagination = $pagination;
+		$this->template->content->total_items = $pagination->total_items;
+		$this->template->content->shares = $shares;
 		$this->template->content->errors = $errors;
 		
 		// Status Tab
 		$this->template->content->status = $status;
 		
-        // Javascript Header
+		// Javascript Header
 		$this->template->colorpicker_enabled = TRUE;
-		$this->template->js = new View('admin/sharing_js');
+		$this->template->js = new View('admin/manage/sharing/sharing_js');
 	}
 	
 	
@@ -196,31 +199,12 @@ class Sharing_Controller extends Admin_Controller
 			return;
 		
 		$share_exists = ORM::factory('sharing')
-			->where('sharing_url', $this->_clean_urls($post->sharing_url))
+			->where('sharing_url', $post->sharing_url)
 			->find();
 		
 		if ($share_exists->loaded)
 		{
 			$post->add_error( 'sharing_url', 'exists');
 		}
-	}
-		
-	
-	/**
-    * Clean Urls
-	* We want to standardize urls to prevent duplication
-    */
-	private function _clean_urls($url)
-	{
-		// Remove http, https, www
-		$remove_array = array('http://www.', 'http://', 'https://', 'https://www.', 'www.');
-		
-		$url = str_replace($remove_array, "", $url);
-		
-		// Remove trailing slash/s
-		$url = implode("/", array_filter(explode("/", $url)));
-		$url = preg_replace('{/$}', '', $url);
-		
-		return $url;
 	}
 }

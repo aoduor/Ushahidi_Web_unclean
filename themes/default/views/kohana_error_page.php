@@ -1,4 +1,20 @@
 <?php defined('SYSPATH') OR die('No direct access allowed.'); ?>
+<?php
+if (PHP_SAPI === 'cli')
+{
+	echo $error . ': ' . $message ."\n";
+	if ( ! empty($file))
+	{
+		echo "FILE: ".$file."\n";
+	}
+	if ( ! empty($line))
+	{
+		echo "LINE: ".$line."\n";
+	}
+	echo "ERROR: ".$message."\n";
+	exit();
+}
+?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
@@ -25,7 +41,9 @@ echo html::script('media/js/bugs', true);
 <div id="loader"></div>
 <?php
 $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : "";
-$url = $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
+$url = ( isset($_SERVER["SERVER_NAME"]) AND isset($_SERVER["REQUEST_URI"]) )
+	? $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"]
+	: '';
 $referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : "";
 $ip_address = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : "";
 
@@ -34,7 +52,7 @@ $environ .= "*URL*: ".$url."\n";
 $environ .= "*REFERER*: ".$referer."\n";
 $environ .= "*USER_AGENT*: ".$user_agent."\n";
 $environ .= "*IP*: ".$ip_address."\n";
-$environ .= "*USHAHIDI VERSION*: ".Kohana::config('version.ushahidi_version')."\n";
+$environ .= "*USHAHIDI VERSION*: ".Kohana::config('settings.ushahidi_version')."\n";
 $environ .= "*DB VERSION*: ".Kohana::config('version.ushahidi_db_version')."\n";
 
 $error_message = "";
@@ -52,7 +70,7 @@ $error_message .= "ERROR: ".$message."\n";
 	<p class="bug_form_desc">Found a bug? Please fill out and submit the form below - help us make Ushahidi better software -- Thanks!</p>
 	<p class="bug_form_desc">All fields are required!</p>
 	<table width="100%" border="0" cellspacing="0" cellpadding="6">
-		<form method="post" action="http://bugs.ushahidi.com" id="form" onSubmit="return validatePost();">
+		<?php echo form::open('http://bugs.ushahidi.com', array('method' => 'post', 'id' => 'form', 'onSubmit' => "return validatePost();")); ?>
 			<input name="tracker" type="hidden" value="Bug">
 			<input name="remote" type="hidden" value="yes">
 			<tr>
@@ -95,7 +113,7 @@ $error_message .= "ERROR: ".$message."\n";
 				<td>&nbsp;</td>
 				<td><input name="submit" type="submit" class="action_btn" id="submit" value="Submit" /></td>
 			</tr>
-		</form>
+		<?php echo form::close(); ?>
 	</table>
 </div>
 <?php if ( ! empty($trace)): ?>

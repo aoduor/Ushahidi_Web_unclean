@@ -45,10 +45,12 @@
 					}
 					?>
 					<div class="head">
-						<input type="image" src="<?php echo url::file_loc('img'); ?>media/img/admin/btn-save-settings.gif" class="save-rep-btn" />
+						<input type="submit" class="save-rep-btn" value="<?php echo Kohana::lang('ui_admin.save_settings');?>" />
 					</div>
 					<!-- column -->
 					<div class="sms_holder">
+
+						<?php Event::run('ui_admin.profile_shown'); ?>
 
 						<div class="row">
 							<h4><a href="#" class="tooltip" title="<?php echo Kohana::lang("tooltips.profile_password"); ?>"><?php echo Kohana::lang('ui_main.current_password'); ?></a> <span class="required"><?php echo Kohana::lang('ui_main.required'); ?></span></h4>
@@ -128,7 +130,7 @@
 
 					<div class="simple_border"></div>
 
-					<input type="image" src="<?php echo url::file_loc('img'); ?>media/img/admin/btn-save-settings.gif" class="save-rep-btn" />
+					<input type="submit" class="save-rep-btn" value="<?php echo Kohana::lang('ui_admin.save_settings');?>" />
 				</div>
 				<?php print form::close(); ?>
 			</div>

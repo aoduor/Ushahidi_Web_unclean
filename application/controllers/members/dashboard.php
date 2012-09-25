@@ -100,18 +100,9 @@ class Dashboard_Controller extends Members_Controller {
 			'needinfo' => 0 // After we save this form once, we don't need to show it again
 		);
 
-		/*
-		// Javascript Header
-		$this->template->flot_enabled = TRUE;
-		$this->template->js = new View('admin/dashboard_js');
-		// Graph
-		$this->template->js->all_graphs = Incident_Model::get_incidents_by_interval('ALL',NULL,NULL,'all');
-		$this->template->js->current_date = date('Y') . '/' . date('m') . '/01';
-		*/
-
 		// Javascript Header
 		$this->template->protochart_enabled = TRUE;
-		$this->template->js = new View('admin/stats_js');
+		$this->template->js = new View('admin/stats/stats_js');
 
 		$this->template->content->failure = '';
 
@@ -119,8 +110,8 @@ class Dashboard_Controller extends Members_Controller {
 
 		// Set the date range (how many days in the past from today?)
 		// Default to one year if invalid or not set
-		$range = (isset($_GET['range']) AND preg_match('/^\d+$/', $_GET['range']) > 0)
-			? (int) $_GET['range']
+		$range = (!empty($_GET['range']))
+			? $_GET['range']
 			: 365;
 
 		// Phase 3 - Invoke Kohana's XSS cleaning mechanism just incase an outlier wasn't caught

@@ -111,7 +111,7 @@ class Search_Controller extends Main_Controller {
 				$search_query = "SELECT *, (".$keyword_string.") AS relevance FROM "
 								. $this->table_prefix."incident "
 								. "WHERE ".$where_string." "
-								. "ORDER BY relevance DESC LIMIT ";
+								. "ORDER BY relevance DESC LIMIT ?, ?";
 			}
 		}
 		
@@ -124,7 +124,7 @@ class Search_Controller extends Main_Controller {
 				'total_items' => ORM::factory('incident')->where($where_string)->count_all()
 			));
 
-			$query = $db->query($search_query . $pagination->sql_offset . ",". (int)Kohana::config('settings.items_per_page'));
+			$query = $db->query($search_query, $pagination->sql_offset, (int)Kohana::config('settings.items_per_page'));
 
 			// Results Bar
 			if ($pagination->total_items != 0)
@@ -152,7 +152,7 @@ class Search_Controller extends Main_Controller {
 			foreach ($query as $search)
 			{
 				$incident_id = $search->id;
-				$incident_title = $search->incident_title;
+				$incident_title = strip_tags($search->incident_title);
 				$highlight_title = "";
 				$incident_title_arr = explode(' ', $incident_title);
 
@@ -168,10 +168,8 @@ class Search_Controller extends Main_Controller {
 					}
 				}
 
-				$incident_description = $search->incident_description;
-
 				// Remove any markup, otherwise trimming below will mess things up
-				$incident_description = strip_tags($incident_description);
+				$incident_description = strip_tags($search->incident_description);
 
 				// Trim to 180 characters without cutting words
 				if ((strlen($incident_description) > 180) AND (strlen($incident_description) > 1))

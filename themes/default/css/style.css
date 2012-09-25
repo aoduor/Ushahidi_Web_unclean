@@ -302,6 +302,7 @@ div.search-form input.searchbtn{
     text-indent: -10000px;
     cursor: pointer;
     padding: 1px 0 19px 0;
+    text-transform: uppercase;
 }
 
 /* submit incident */
@@ -1940,7 +1941,7 @@ span.required {
     right:0;
     width:18px;
     height:18px;
-    background: url("../img/openlayers/layer-switcher-minimize.png") no-repeat;
+    background: url("../../../media/img/openlayers/layer-switcher-minimize.png") no-repeat;
     cursor: pointer;
 }
 
@@ -2224,7 +2225,7 @@ ul.filter-list li a.selected {
     border-radius: 3px; 
 }
 
-ul.filter-list li a span.item-swatch { display:block; height:16px; width:16px; margin-right: 8px; border:1px solid white; float:left; }
+ul.filter-list li a span.item-swatch { display:block; height:16px; width:16px; margin-right: 8px; border:1px solid white; float:left; overflow: hidden; }
 ul.filter-list li a span.item-icon { display:block; float:left; margin-right:8px; height:16px; width:16px; }
 ul.filter-list li a span.item-title { display:block; padding:0 40px 0 26px; }
 ul.filter-list li a span.item-count {

@@ -22,7 +22,7 @@ class Messages_Controller extends Admin_Controller {
 		$this->template->this_page = 'messages';
 
 		// If user doesn't have access, redirect to dashboard
-		if ( ! admin::permissions($this->user, "messages"))
+		if ( ! $this->auth->has_permission("messages"))
 		{
 			url::redirect(url::site().'admin/dashboard');
 		}
@@ -38,7 +38,7 @@ class Messages_Controller extends Admin_Controller {
 		$db_config = Kohana::config('database.default');
 		$table_prefix = $db_config['table_prefix'];
 
-		$this->template->content = new View('admin/messages');
+		$this->template->content = new View('admin/messages/main');
 
 		// Get Title
 		$service = ORM::factory('service', $service_id);
@@ -78,7 +78,7 @@ class Messages_Controller extends Admin_Controller {
 		// Do we have a reporter ID?
 		if (isset($_GET['rid']) AND !empty($_GET['rid']))
 		{
-			$filter .= ' AND message.reporter_id=\''.$_GET['rid'].'\'';
+			$filter .= ' AND message.reporter_id=\''.intval($_GET['rid']).'\'';
 		}
         
 		// ALL / Trusted / Spam
@@ -130,7 +130,7 @@ class Messages_Controller extends Admin_Controller {
 					}
 
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.deleted'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.deleted'));
 				}
 				elseif ($post->action == 'n')
 				{
@@ -147,7 +147,7 @@ class Messages_Controller extends Admin_Controller {
 					}
 
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.modified'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.modified'));
 				}
 				elseif ($post->action == 's')
 				{
@@ -164,7 +164,7 @@ class Messages_Controller extends Admin_Controller {
 					}
 
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.modified'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.modified'));
 				}
 			}
 			// No! We have validation errors, we need to show the form again, with the errors
@@ -245,7 +245,7 @@ class Messages_Controller extends Admin_Controller {
 		$this->template->content->level = $level;
 
 		// Javascript Header
-		$this->template->js = new View('admin/messages_js');
+		$this->template->js = new View('admin/messages/messages_js');
 	}
 
 	/**
@@ -297,29 +297,29 @@ class Messages_Controller extends Admin_Controller {
 					if (preg_match("/([a-zA-Z])(\D)/", $sms_to))
 					{
 						$this->decrypter = new Encrypt;
-						$sms_to = intval($this->decrypter->decode($sms_to));
+						$sms_to = $this->decrypter->decode($sms_to);
 					}
 					else
 					{
-						$sms_to = intval($sms_to);
+						$sms_to = $sms_to;
 					}
 
 					// Load Users Settings
-					$settings = new Settings_Model(1);
-					if ($settings->loaded == TRUE)
+					$settings = Settings_Model::get_array();
+					if ( !empty($settings))
 					{
 						// Get SMS Numbers
-						if ( ! empty($settings->sms_no3))
+						if ( ! empty($settings['sms_no1']))
 						{
-							$sms_from = $settings->sms_no3;
+							$sms_from = $settings['sms_no1'];
 						}
-						elseif ( ! empty($settings->sms_no2))
+						elseif ( ! empty($settings['sms_no2']))
 						{
-							$sms_from = $settings->sms_no2;
+							$sms_from = $settings['sms_no2'];
 						}
-						elseif ( ! empty($settings->sms_no1))
+						elseif ( ! empty($settings['sms_no3']))
 						{
-							$sms_from = $settings->sms_no1;
+							$sms_from = $settings['sms_no3'];
 						}
 						else
 						{
@@ -353,7 +353,7 @@ class Messages_Controller extends Admin_Controller {
 							// Message Failed 
 							echo json_encode(array(
 								"status" => "error", 
-								"message" => Kohana::lang('ui_admin.error')." - " . $response
+								"message" => Kohana::lang('ui_admin.error_msg')." - " . $response
 							));
 						}
 					}
@@ -361,7 +361,7 @@ class Messages_Controller extends Admin_Controller {
 					{
 						echo json_encode(array(
 							"status" => "error",
-							"message" => Kohana::lang('ui_admin.error').Kohana::lang('ui_admin.check_sms_settings')
+							"message" => Kohana::lang('ui_admin.error_msg').Kohana::lang('ui_admin.check_sms_settings')
 						));
 					}
 				}
@@ -370,7 +370,7 @@ class Messages_Controller extends Admin_Controller {
 					// Send_To Mobile Number Doesn't Exist
 					echo json_encode(array(
 						"status" => "error", 
-						"message" => Kohana::lang('ui_admin.error').Kohana::lang('ui_admin.check_number')
+						"message" => Kohana::lang('ui_admin.error_msg').Kohana::lang('ui_admin.check_number')
 					));
 				}
 			}
@@ -383,7 +383,7 @@ class Messages_Controller extends Admin_Controller {
 
 				echo json_encode(array(
 					"status" => "error",
-					"message" => Kohana::lang('ui_admin.error').Kohana::lang('ui_admin.check_message_valid')
+					"message" => Kohana::lang('ui_admin.error_msg').Kohana::lang('ui_admin.check_message_valid')
 				));
 			}
 		}

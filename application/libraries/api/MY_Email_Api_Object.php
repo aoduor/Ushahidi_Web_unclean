@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 /**
- * This class handles GET request for KML via the API.
+ * This class handles GET request for Email via the API.
  *
  * @version 25 - Emmanuel Kala 2010-10-27
  *
@@ -26,6 +26,13 @@ class Email_Api_Object extends Api_Object_Core {
      */
     public function perform_task()
     {
+			// Authenticate the user
+			if ( ! $this->api_service->_login(TRUE))
+			{
+				$this->set_error_message($this->response(2));
+				return;
+			}
+			
         $this->_list_all_email_msgs();
     }
 
@@ -34,6 +41,13 @@ class Email_Api_Object extends Api_Object_Core {
      */
     public function email_action()
     {
+			// Authenticate the user
+			if ( ! $this->api_service->_login(TRUE))
+			{
+				$this->set_error_message($this->response(2));
+				return;
+			}
+			
         if ( ! $this->api_service->verify_array_index($this->request, 'action'))
         {
             $this->set_error_message(array(
@@ -95,7 +109,7 @@ class Email_Api_Object extends Api_Object_Core {
 
         foreach ($items as $email)
         {
-            if ( $response_type == 'json')
+            if ( $response_type == 'json' OR $response_type == 'jsonp')
             {
                 $json_categories[] = array("email" => $item);        
             }
@@ -113,7 +127,7 @@ class Email_Api_Object extends Api_Object_Core {
             "count" => $json_categories),
             "error" => $this->api_service->get_error_msg(0));
 
-        if ($this->response_type == 'json') 
+        if ($this->response_type == 'json' OR $this->response_type == 'jsonp') 
         {
             $ret_json_or_xml = $this->array_as_json($data);
         }
@@ -146,7 +160,7 @@ class Email_Api_Object extends Api_Object_Core {
             $post->add_rules('action','required', 'alpha', 'length[1,1]');
             $post->add_rules('message_id','required','numeric');
 
-            if ($post->validate())
+            if ($post->validate(FALSE))
             {
                 $email_id = $post->message_id;
                 $email = new Message_Model($email_id);
@@ -159,7 +173,7 @@ class Email_Api_Object extends Api_Object_Core {
                     //email id doesn't exist in DB
                     //TODO i18nize the string
                     $this->error_messages .= "Email ID does not exist.";
-                    $this->ret_value = 1;
+                    $ret_value = 1;
 
                 }
             }
@@ -199,7 +213,7 @@ class Email_Api_Object extends Api_Object_Core {
             $post->add_rules('action','required', 'alpha', 'length[1,1]');
             $post->add_rules('message_id','required','numeric');
 
-            if ($post->validate())
+            if ($post->validate(FALSE))
             {
                 $email_id = $post->message_id;
                 $email = new Message_Model($email_id);

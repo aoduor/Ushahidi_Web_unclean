@@ -9,6 +9,15 @@
 *   to maintenance.php and all users will be told the site is undergoing maintenance.
 */
 
+// running at the command line, fake some server values
+if (php_sapi_name() == 'cli')
+{
+	$_SERVER['SERVER_PROTOCOL'] = "HTTP/1.1";
+	$_SERVER['HTTP_HOST'] = 'localhost';
+	$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+	$_SERVER['REQUEST_URI'] = Router::$current_uri;
+}
+
 // Grab the IP address in case we need to use it for maintenance mode
 $ip_address = FALSE;
 if ( ! empty($_SERVER['HTTP_CLIENT_IP']))
@@ -25,21 +34,25 @@ else
 }
 
 $maintenance = FALSE;
-$db = Database::instance();
-$maintenance_ips = $db->query("SELECT `allowed_ip` FROM `maintenance`;");
-foreach ($maintenance_ips as $row)
-{
-	// Assume we will be in maintenance mode now
-	$maintenance = TRUE;
-
-	// Check if we should be allowed to bypass maintenance
-	if ($ip_address == $row->allowed_ip)
+try {
+	$db = Database::instance();
+	$maintenance_ips = $db->query("SELECT `allowed_ip` FROM `".Kohana::config('database.default.table_prefix')."maintenance`;");
+	foreach ($maintenance_ips as $row)
 	{
-		$maintenance = FALSE;
-		// Since we already matched an IP, no need to keep looping
-		break;
+		// Assume we will be in maintenance mode now
+		$maintenance = TRUE;
+
+		// Check if we should be allowed to bypass maintenance
+		if ($ip_address == $row->allowed_ip)
+		{
+			$maintenance = FALSE;
+			// Since we already matched an IP, no need to keep looping
+			break;
+		}
 	}
 }
+catch (Exception $e)
+{}
 
 // If we are in maintenance mode and didn't match the IP, show maintenance message
 if ($maintenance == TRUE)

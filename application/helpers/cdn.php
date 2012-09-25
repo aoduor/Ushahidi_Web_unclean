@@ -93,6 +93,11 @@ class cdn_Core {
 	 */
 	public static function gradual_upgrade()
 	{
+		if (Kohana::config('cdn.cdn_store_dynamic_content') == FALSE)
+		{
+			return FALSE;
+		}
+
 		try
 		{
 			self::connection();
@@ -156,8 +161,8 @@ class cdn_Core {
 					foreach ($category_images as $row)
 					{
 						// Upload files to the CDN
-						$new_category_image = $this->cdn->upload($row->category_image);
-						$new_category_image_thumb = $this->cdn->upload($row->category_image_thumb);
+						$new_category_image = self::$cdn->upload($row->category_image);
+						$new_category_image_thumb = self::$cdn->upload($row->category_image_thumb);
 
 						// Update the entry for the media file in the DB
 						$db->update('category',

@@ -13,7 +13,8 @@
  * directory of your site. (Same directory as this index.php file)
  *
  */
-if(file_exists('maintenance.php')){
+if (file_exists('maintenance.php'))
+{
 	header("Status: 503 Service Temporarily Unavailable");
 	die(file_get_contents('maintenance.php'));
 }
@@ -153,6 +154,21 @@ if ( ! IN_PRODUCTION)
 	}
 }
 
+// 
+// Check if the application has been installed
+// -------------------------------------------
+// This has to be done before bootstrapping the Kohana framework
+// 
+// Does the installer directory exist?
+if (file_exists(DOCROOT.DIRECTORY_SEPARATOR.'installer'))
+{
+	if ( ! file_exists(APPPATH.'config'.DIRECTORY_SEPARATOR.'database.php'))
+	{
+		// Redirect to the installer
+		header("Location: ./installer");
+		exit();
+	}
+}
 
 // Initialize.
 require SYSPATH.'core/Bootstrap'.EXT;

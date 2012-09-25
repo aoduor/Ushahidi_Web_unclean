@@ -17,10 +17,11 @@
 
 class User_Model extends Auth_User_Model {
 
-	protected $has_many = array('alert', 'comment', 'openid', 'private_message', 'user');
-
+	protected $has_many = array('alert', 'comment', 'openid', 'private_message', 'rating');
+	
 	/**
 	 * Creates a basic user and assigns to login and member roles
+	 * 
 	 * @param   string  email
 	 * @param   string  password
 	 * @param   string  riverid user id
@@ -128,23 +129,14 @@ class User_Model extends Auth_User_Model {
 	 * @param   Auth   instance of Auth class; used for testing purposes
 	 * @return bool TRUE if validation succeeds, FALSE otherwise
 	 */
-	public static function custom_validate(array & $post, Auth $auth = null)
+	public static function custom_validate(array & $post, Auth $auth = NULL)
 	{
 		// Initalize validation
 		$post = Validation::factory($post)
 				->pre_filter('trim', TRUE);
 		
-		// CSRF validation before proceeding with the rest of the validation
-		if (in_array(MODPATH.'csrf', Kohana::config('config.modules')))
+		if ($auth === NULL)
 		{
-			if ( ! isset($post['form_auth_token']) OR ! csrf::valid($post['form_auth_token']))
-			{
-				$post->add_error('username','csrf');
-				return FALSE;
-			}
-		}
-		
-		if ($auth === null) {
 			$auth = new Auth;
 		}
 
@@ -158,11 +150,15 @@ class User_Model extends Auth_User_Model {
 			$post->add_callbacks('username', array('User_Model', 'unique_value_exists'));
 			$post->add_callbacks('email', array('User_Model', 'unique_value_exists'));
 		}
+		
+		// Make sure we have a value for password length to avoid PHP error for missing length[] function
+		$password_length = Kohana::config('auth.password_length');
+		$password_length = ( ! empty($password_length)) ? $password_length : '1,127';
 
 		// Only check for the password if the user id has been specified and we are passing a pw
 		if (isset($post->user_id) AND isset($post->password))
 		{
-			$post->add_rules('password','required', 'length['.kohana::config('auth.password_length').']');
+			$post->add_rules('password','required', 'alpha_dash', 'length['.$password_length.']');
 			$post->add_callbacks('password' ,'User_Model::validate_password');
 		}
 
@@ -170,7 +166,7 @@ class User_Model extends Auth_User_Model {
 		if ( isset($post->password) AND
 			(! empty($post->password) OR (empty($post->password) AND ! empty($post->password_again))))
 		{
-			$post->add_rules('password','required','length['.kohana::config('auth.password_length').']', 'matches[password_again]');
+			$post->add_rules('password','required', 'alpha_dash','length['.$password_length.']', 'matches[password_again]');
 			$post->add_callbacks('password' ,'User_Model::validate_password');
 		}
 
@@ -284,5 +280,83 @@ class User_Model extends Auth_User_Model {
 		return FALSE;
 	}
 
+
+	/**
+	 * Overrides the default delete method for the ORM.
+	 * Deletes roles associated with the user before user is removed from DB.
+	 */
+	public function delete()
+	{
+		// Remove assigned roles
+		// Have to use db->query() since we don't have an ORM model for roles_users
+		$this->db->query('DELETE FROM roles_users WHERE user_id = ?',$this->id);
+		
+		// Remove assigned badges
+		$this->db->query('DELETE FROM badge_users WHERE user_id = ?',$this->id);
+
+		// Delete alerts
+		ORM::factory('alert')
+		    ->where('user_id', $this->id)
+		    ->delete_all();
+		
+		// Delete user_token
+		ORM::factory('user_token')
+		    ->where('user_id', $this->id)
+		    ->delete_all();
+		
+		// Delete openid
+		ORM::factory('openid')
+		    ->where('user_id', $this->id)
+		    ->delete_all();
+
+		// Delete user_devices
+		ORM::factory('user_devices')
+		    ->where('user_id', $this->id)
+		    ->delete_all();
+		
+		parent::delete();
+	}
+	
+	/**
+	 * Check if user has specified permission
+	 * @param $permission String permission name
+	 **/
+	public function has_permission($permission)
+	{
+		// Special case - superadmin ALWAYS has all permissions
+		if ($this->has(ORM::factory('role','superadmin')))
+		{
+			return TRUE;
+		}
+		
+		foreach ($this->roles as $user_role)
+		{
+			if ($user_role->has(ORM::factory('permission',$permission)))
+			{
+				return TRUE;
+			}
+		}
+		
+		return FALSE;
+	}
+	
+	/**
+	 * Get user's dashboard
+	 */
+	public function dashboard()
+	{
+		if ($this->has_permission('admin_ui'))
+			return 'admin';
+		
+		if ($this->has_permission('member_ui'))
+			return 'members';
+		
+		// Just in case someone has a login only role
+		if ($this->has(ORM::factory('role','login')))
+			return '';
+		
+		// Send anyone else to login
+		return 'login';
+	}
 
 } // End User_Model

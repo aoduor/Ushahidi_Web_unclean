@@ -1,3 +1,5 @@
+-- Altering table structures for the following tables based on recommendations from http://lopad.org/6aOddOZx72
+
 -- actions_log
 ALTER TABLE `actions_log` ADD INDEX `action_id` (`action_id`);
 
@@ -109,6 +111,12 @@ ALTER TABLE  `incident_person` ADD INDEX  `incident_id` (  `incident_id` );
 -- location
 ALTER TABLE  `location` ADD INDEX  `country_id` (  `country_id` );
 
+<<<<<<< HEAD
+=======
+-- maintenance
+ALTER TABLE  `maintenance` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+>>>>>>> e285423210699f2bb4aa5b744bb4968bbc457e4b
 -- media
 ALTER TABLE  `media` CHANGE  `location_id`  `location_id` BIGINT( 20 ) UNSIGNED NULL DEFAULT NULL;
 ALTER TABLE  `media` CHANGE  `incident_id`  `incident_id` BIGINT( 20 ) UNSIGNED NULL DEFAULT NULL;
@@ -181,4 +189,8 @@ ALTER TABLE `verified` DROP `verified_comment`;
 ALTER TABLE `verified` CHANGE  `incident_id`  `incident_id` BIGINT( 20 ) UNSIGNED NULL DEFAULT NULL;
 ALTER TABLE `verified` ADD INDEX  `incident_id` (  `incident_id` );
 
+<<<<<<< HEAD
 UPDATE `settings` SET `db_version` = '79' WHERE `id`=1 LIMIT 1;
+=======
+UPDATE `settings` SET `db_version` = '80' WHERE `id` = 1 LIMIT 1;
+>>>>>>> e285423210699f2bb4aa5b744bb4968bbc457e4b

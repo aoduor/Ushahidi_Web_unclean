@@ -16,7 +16,7 @@
 
 class Checkins_Controller extends Members_Controller {
 	
-	function __construct()
+	public function __construct()
 	{
 		parent::__construct();
 
@@ -24,10 +24,10 @@ class Checkins_Controller extends Members_Controller {
 	}
 	
 	/**
-	* Lists the checkins.
-	* @param int $page
-	*/
-	function index($page = 1)
+	 * Lists the checkins.
+	 * @param int $page
+	 */
+	public function index($page = 1)
 	{
 		$this->template->content = new View('members/checkins');
 		$this->template->content->title = Kohana::lang('ui_admin.my_checkins');
@@ -57,7 +57,7 @@ class Checkins_Controller extends Members_Controller {
 						$update = ORM::factory('checkin')
 							->where('user_id', $this->user->id)
 							->find($item);
-						if ($update->loaded == true)
+						if ($update->loaded)
 						{
 							$checkin_id = $update->id;
 							$update->delete();
@@ -66,7 +66,7 @@ class Checkins_Controller extends Members_Controller {
 							ORM::factory('media')->where('checkin_id',$checkin_id)->delete_all();
 						}
 					}
-					$form_action = strtoupper(Kohana::lang('ui_admin.deleted'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.deleted'));
 				}
 				$form_saved = TRUE;
 			}

@@ -1,3 +1,79 @@
+Ushahidi 2.5 (Cairo), 01-08-2012
+-------------------------------------
+
+* Mapping: 
+	- The mapping code has been refactored and decoupled from the timeline. 
+	- There are now events triggered for actions such as zoom changes, changine layer, etc. , which can be used to extend mapping function
+	- The timeline can now be turned on or off.
+* Themes: 
+	- The views have been namespaced on a per-controller basis.
+	- Views for the front-end (including JS) have all been moved to the themes folder
+* Settings table:
+	- The structure for the settings table has been modified so that data are stored as key/value pairs.
+* Installer:
+	- The installer has been reworked in order to work with the new settings table structure
+	- Additionally, we now perform the installation check in index.php
+* Configuration files:
+	- The following files are no longer in the repository: config.php, auth.php and encryption.php.
+		In their place are templates (.template.php files) which are used by the installer to generate the respective config files.
+* Roles and Permission:
+	- User permissions have been refactored into a separate table form roles. This now allows plugins to add their own permissions.
+* Alerts
+	- Allow admin to view, search and delete user alerts in the system
+* Security fixes thanks to OWASP Portland
+	- Multiple SQL injections  (Thanks: Timothy D. Morgan, Kees Cook, postmodern)
+	- Missing authentication on comments, reports and email API calls  (Thanks: Kees Cook, Dennison Williams)
+	- Admin user hijacking through the installer  (Thanks: Wil Clouser)
+	- Stored XSS on member profile pages  (Thanks: Amy K. Farrell)
+	- User data exposed in comment API
+* Further details on migrating to 2.5 are available on the wiki
+  -> https://wiki.ushahidi.com/display/WIKI/Migrating+to+Ushahidi+2.5
+
+
+Ushahidi 2.4.1 - Upgrader fix release, 01-08-2012
+-------------------------------------
+
+* Add support for removing old files during upgrade (#716)
+* Clear cache after new files copied over
+* Fix for DB upgrades 
+
+
+Ushahidi 2.4 - Bug fix release, 30-05-2012
+-------------------------------------
+
+* Fix A 500 error that was being thrown by the Scheduler (#387)
+* Category icons now showing up on the map (#390)
+* Fix map styling on the Actions/Triggers module (#435)
+* Security fixes
+	 - Cross Site Scripting (XSS)
+* More on the bugs fixed can be found here:
+	-> https://docs.google.com/a/ushahidi.com/spreadsheet/ccc?key=0AizezfooB3k9dC1GX3RsNl9ocnQ3U1lmTUtSbFAwMlE#gid=7
+
+
+
+Ushahidi 2.3.2 - Bug fix release, 08-05-2012
+-------------------------------------
+
+* Security fix for Admin API - prevent member role from accessing the admin API. (SA-WEB-2012-005)
+* Fix Google maps base layers - base layer type were being incorrectly escaped
+* Fix session driver change from 2.3.1 - Set session driver back to cookie as other drivers are buggy
+
+Ushahidi 2.3.1 - Security fix release, 30-04-2012
+-------------------------------------
+
+* Security fix for session storage - sessions from any deployment were valid on any other deployment (SA-WEB-2012-004)
+
+Ushahidi 2.3 - (Juba) Bug fix release, 24-04-2012
+--------------------------
+* Cleaned up database Schema
+* Few improvements on the installer 
+	– This includes the introduction of an admin login email configuration.
+	- Hiding of admin password once installation is complete.
+* Added HTML editing and more attributes to the page editor. 
+* Security fixes
+    - Cross Site Request Forgery (CSRF)
+    - Cross Site Scripting (XSS)
+
 Ushahidi 2.2.1 - bug fix release, 04-04-2012
 --------------------------
 * Map JS unification (#278)

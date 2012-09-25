@@ -113,14 +113,15 @@ final class Kohana {
 
 			// Set default timezone, due to increased validation of date settings
 			// which cause massive amounts of E_NOTICEs to be generated in PHP 5.2+
-			date_default_timezone_set(empty($timezone) ? date_default_timezone_get() : $timezone);
+			date_default_timezone_set(empty($timezone) ? 'UTC' : $timezone);
 		}
 
 		// Restore error reporting
 		error_reporting($ER);
 
 		// Start output buffering
-		ob_start(array(__CLASS__, 'output_buffer'));
+		// Hack to support PHP 5.4 - we're now calling Kohana::output_buffer() manually in Kohana::close_buffers() - rjmackay 20120914
+		ob_start(/*array(__CLASS__, 'output_buffer')*/);
 
 		// Save buffering level
 		self::$buffer_level = ob_get_level();
@@ -668,8 +669,10 @@ final class Kohana {
 			}
 
 			// This will flush the Kohana buffer, which sets self::$output
+			// Hack to support PHP 5.4 - we're now calling Kohana::output_buffer() manually - rjmackay 20120914
+			self::output_buffer(ob_get_contents());
 			ob_end_clean();
-
+			
 			// Reset the buffer level
 			self::$buffer_level = ob_get_level();
 		}
@@ -1227,7 +1230,7 @@ final class Kohana {
 			// Only save error to log for en_US to the log since it's the default fallback
 			if ($locale == 'en_US')
 			{
-				self::log('error', 'Missing i18n entry '.$key.' for language '.$locale);
+				self::log('info', 'Missing i18n entry '.$key.' for language '.$locale);
 			}
 
 			if ($force_locale != NULL)
@@ -1528,7 +1531,9 @@ final class Kohana {
 
 			if (isset($entry['file']))
 			{
-				$temp .= self::lang('core.error_file_line', preg_replace('!^'.preg_quote(DOCROOT).'!', '', $entry['file']), $entry['line']);
+				// Hack this since kohana lang seems to fail here every time
+				$temp .= sprintf('<tt>%s <strong>[%s]:</strong></tt>', preg_replace('!^'.preg_quote(DOCROOT).'!', '', $entry['file']), $entry['line']);
+				//$temp .= self::lang('core.error_file_line', preg_replace('!^'.preg_quote(DOCROOT).'!', '', $entry['file']), $entry['line']);
 			}
 
 			$temp .= '<pre>';

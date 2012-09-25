@@ -28,11 +28,11 @@
   elseif (count($uri_segments) >= 2)
   {
     $body_class = "page-".$uri_segments[0]."-".$uri_segments[1];
-  };
+  }
 
 ?>
 
-<body id="page" class="<?php echo $body_class; ?>" />
+<body id="page" class="<?php echo $body_class; ?>">
 
 <?php echo $header_nav; ?>
 
@@ -49,7 +49,7 @@
 			<?php echo $search; ?>
 			<!-- / searchform -->
 
-    </div>
+	    </div>
   </div>
   <!-- / searchbox -->
 
@@ -61,19 +61,24 @@
 		<div id="header">
 
 			<!-- logo -->
-			<?php if($banner == NULL){ ?>
+			<?php if ($banner == NULL): ?>
 			<div id="logo">
 				<h1><a href="<?php echo url::site();?>"><?php echo $site_name; ?></a></h1>
 				<span><?php echo $site_tagline; ?></span>
 			</div>
-			<?php }else{ ?>
+			<?php else: ?>
 			<a href="<?php echo url::site();?>"><img src="<?php echo $banner; ?>" alt="<?php echo $site_name; ?>" /></a>
-			<?php } ?>
+			<?php endif; ?>
 			<!-- / logo -->
 
 			<!-- submit incident -->
 			<?php echo $submit_btn; ?>
 			<!-- / submit incident -->
+
+			<?php
+				// Action::main_sidebar - Add Items to the Entry Page Sidebar
+				Event::run('ushahidi_action.main_sidebar');
+			?>
 
 		</div>
 		<!-- / header -->
@@ -82,6 +87,13 @@
             // Action::header_item - Additional items to be added by plugins
 	        Event::run('ushahidi_action.header_item');
         ?>
+
+        <?php if(isset($site_message) AND $site_message != '') { ?>
+			<div class="green-box">
+				<h3><?php echo $site_message; ?></h3>
+			</div>
+		<?php } ?>
+
 		<!-- main body -->
 		<div id="middle">
 			<div class="background layoutleft">

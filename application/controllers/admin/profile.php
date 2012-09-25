@@ -62,9 +62,10 @@ class Profile_Controller extends Admin_Controller
             // If Password field is not blank
             if ( ! empty($post->new_password))
             {
-                $post->add_rules('new_password','required','length[5,30]','alpha_numeric','matches[password_again]');
+                $post->add_rules('new_password','required','length[5,30]','alpha_dash','matches[password_again]');
             }
-
+		//for plugins that'd like to know what the user has to say about their profile
+		Event::run('ushahidi_action.profile_add_admin', $post);
 			if ($post->validate())
 			{
 				$user = ORM::factory('user',$this->user_id);
@@ -73,8 +74,16 @@ class Profile_Controller extends Admin_Controller
 					$user->name = $post->name;
 					$user->email = $post->email;
 					$user->notify = $post->notify;
-					$post->new_password != '' ? $user->password = $post->new_password : '';
+					if ($post->new_password != '')
+                    {
+                        $user->password = $post->new_password;
+                    }
 					$user->save();
+					
+					
+					
+					Event::run('ushahidi_action.profile_edit', $user);
+						
 
 	                // We also need to update the RiverID server with the new password if
 	                //    we are using RiverID and a password is being passed
@@ -123,7 +132,7 @@ class Profile_Controller extends Admin_Controller
         $this->template->content->errors = $errors;
         $this->template->content->form_error = $form_error;
         $this->template->content->form_saved = $form_saved;
-        $this->template->content->yesno_array = array('1'=>strtoupper(Kohana::lang('ui_main.yes')),'0'=>strtoupper(Kohana::lang('ui_main.no')));
+        $this->template->content->yesno_array = array('1'=>utf8::strtoupper(Kohana::lang('ui_main.yes')),'0'=>utf8::strtoupper(Kohana::lang('ui_main.no')));
 
         // Javascript Header
     }

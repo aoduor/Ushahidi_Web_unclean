@@ -16,14 +16,11 @@
 class Login_Controller extends Template_Controller {
 
 	public $auto_render = TRUE;
-
-	protected $user;
-
 	// Session Object
 	protected $session;
 
 	// Main template
-	public $template = 'login';
+	public $template = 'login/main';
 
 
 	public function __construct()
@@ -31,7 +28,6 @@ class Login_Controller extends Template_Controller {
 		parent::__construct();
 
 		$this->session = new Session();
-		// $profiler = new Profiler;
 	}
 
 	public function index($user_id = 0)
@@ -43,36 +39,24 @@ class Login_Controller extends Template_Controller {
 		$auth = Auth::instance();
 
 		// If already logged in redirect to user account page
-		// Otherwise attempt to auto login if autologin cookie can be found
-		// (Set when user previously logged in and ticked 'stay logged in')
 
 		$insufficient_role = FALSE;
 
-		if ($auth->logged_in() OR $auth->auto_login())
+		if ($auth->logged_in())
 		{
-			if ( $user = Session::instance()->get('auth_user',FALSE) )
+			// Redirect users to the relevant dashboard
+			if ($auth->logged_in('login'))
 			{
-				// Members go to their member panel
-				if($auth->logged_in('member'))
-				{
-					url::redirect('members/dashboard');
-				}
-
-				// Admins go to the admin panel
-				if($auth->logged_in('admin') OR $auth->logged_in('superadmin'))
-				{
-					url::redirect('admin');
-				}
-
-				$insufficient_role = TRUE;
-				$message_class = 'login_error';
-				$message = Kohana::lang('ui_main.insufficient_role');
+				url::redirect($auth->get_user()->dashboard());
 			}
+
+			$insufficient_role = TRUE;
+			$message_class = 'login_error';
+			$message = Kohana::lang('ui_main.insufficient_role');
 		}
 
 		// setup and initialize form field names
-		$form = array
-		(
+		$form = array(
 			'action'	=> '',
 			'username'	=> '',
 			'password'	=> '',
@@ -108,6 +92,14 @@ class Login_Controller extends Template_Controller {
 			$message = Kohana::lang('ui_main.must_confirm_email_address');
 		}
 
+		// Show send new confirm email form
+		if (isset($_GET["confirmation_failure"]))
+		{
+			$new_confirm_email_form = TRUE;
+			$message_class = 'login_error';
+			$message = Kohana::lang('ui_main.confirm_email_failed');
+		}
+
 		// Show that confirming the email address was a success
 		if (isset($_GET["confirmation_success"]))
 		{
@@ -124,8 +116,7 @@ class Login_Controller extends Template_Controller {
 
 		// Regular Form Post for Signin
 		// check, has the form been submitted, if so, setup validation
-		if ($_POST AND isset($_POST["action"])
-			AND $_POST["action"] == "signin")
+		if ($_POST AND isset($_POST["action"]) AND $_POST["action"] == "signin")
 		{
 
 			// START: Signin Process
@@ -135,67 +126,65 @@ class Login_Controller extends Template_Controller {
 			$post->add_rules('username', 'required');
 			$post->add_rules('password', 'required');
 
-			if ($post->validate())
+			if ($post->validate(FALSE))
 			{
 				// Sanitize $_POST data removing all inputs without rules
 				$postdata_array = $post->safe_array();
 
 				// Flip this flag to flase to skip the login
-				$valid_login = true;
+				$valid_login = TRUE;
 
 				// Load the user
 				$user = ORM::factory('user', $postdata_array['username']);
 
-				$remember = (isset($post->remember))? TRUE : FALSE;
+				$remember = (isset($post->remember)) ? TRUE : FALSE;
 
 				// Allow a login with username or email address, but we need to figure out which is
-				//   which so we can pass the appropriate variable on login. Mostly used for RiverID
+				// which so we can pass the appropriate variable on login. Mostly used for RiverID
 
 				$email = $postdata_array['username'];
-				if (valid::email($email) == false)
+				if (valid::email($email) == FALSE)
 				{
 					// Invalid Email, we need to grab it from the user account instead
 
 					$email = $user->email;
-					if (valid::email($email) == false AND kohana::config('riverid.enable') == true)
+					if (valid::email($email) == FALSE AND kohana::config('riverid.enable') == TRUE)
 					{
 						// We don't have any valid email for this user.
 						// Only skip login if we are authenticating with RiverID.
-						$valid_login = false;
+						$valid_login = FALSE;
 					}
 				}
 
 				// Auth Login requires catching exceptions to properly show errors
-				try {
-
+				try
+				{
 					$login = $auth->login($user, $postdata_array['password'], $remember, $email);
 
 					// Attempt a login
-					if ( $login AND $valid_login )
+					if ($login AND $valid_login )
 					{
 						// Action::user_login - User Logged In
 						Event::run('ushahidi_action.user_login',$user);
 
 						// Exists Redirect to Dashboard
-						url::redirect("members/dashboard");
+						url::redirect($user->dashboard());
 					}
 					else
 					{
+						// If user isn't confirmed, redirect to resend confirmation page
+						if (Kohana::config('settings.require_email_confirmation') AND ORM::factory('user', $user)->confirmed == 0)
+						{
+							url::redirect("login?new_confirm_email");
+						}
+						
 						// Generic Error if exception not passed
 						$post->add_error('password', 'login error');
 					}
-
-				} catch (Exception $e) {
-
+				}
+				catch (Exception $e)
+				{
 					$error_message = $e->getMessage();
-
-					// In a special case, we want to show a form to resend a confirmation email
-					//   "need_email_confirmation" can be found in modules/auth/libraries/drivers/Auth/ORM.php
-					if ( $error_message == 'need_email_confirmation')
-					{
-						//Redirect back to the login form and show the for to request a new confirmation email
-						url::redirect("login?new_confirm_email");
-					}
 
 					// We use a "custom" message because of RiverID.
 					$post->add_error('password', $error_message);
@@ -207,7 +196,7 @@ class Login_Controller extends Template_Controller {
 				// populate the error fields, if any
 				// We need to already have created an error message file, for Kohana to use
 				// Pass the error message file name to the errors() method
-				$errors = arr::overwrite($errors, $post->errors('auth'));
+				$errors = arr::merge($errors, $post->errors('auth'));
 				$form_error = TRUE;
 
 			}
@@ -219,15 +208,14 @@ class Login_Controller extends Template_Controller {
 				// populate the error fields, if any
 				// We need to already have created an error message file, for Kohana to use
 				// Pass the error message file name to the errors() method
-				$errors = arr::overwrite($errors, $post->errors('auth'));
+				$errors = arr::merge($errors, $post->errors('auth'));
 				$form_error = TRUE;
 			}
 
 			// END: Signin Process
 
 		}
-		elseif ($_POST AND isset($_POST["action"])
-			AND $_POST["action"] == "new")
+		elseif ($_POST AND isset($_POST["action"]) AND $_POST["action"] == "new")
 		{
 
 			// START: New User Process
@@ -237,19 +225,20 @@ class Login_Controller extends Template_Controller {
 			//	Add some filters
 			$post->pre_filter('trim', TRUE);
 
-			$post->add_rules('password','required', 'length['.kohana::config('auth.password_length').']','alpha_numeric');
+			$post->add_rules('password','required', 'length['.kohana::config('auth.password_length').']','alpha_dash');
 			$post->add_rules('name','required','length[3,100]');
 			$post->add_rules('email','required','email','length[4,64]');
 			$post->add_callbacks('username', array($this,'username_exists_chk'));
 			$post->add_callbacks('email', array($this,'email_exists_chk'));
 
 			// If Password field is not blank
-			if (!empty($post->password))
+			if ( ! empty($post->password))
 			{
 				$post->add_rules('password','required','length['.kohana::config('auth.password_length').']'
-					,'alpha_numeric','matches[password_again]');
+					,'alpha_dash','matches[password_again]');			
 			}
-
+			//pass the post object to any plugins that care to know.
+			Event::run('ushahidi_action.users_add_login_form', $post);
 			if ($post->validate())
 			{
 
@@ -264,11 +253,12 @@ class Login_Controller extends Template_Controller {
 				}
 
 				$user = User_Model::create_user($post->email,$post->password,$riverid_id,$post->name);
-
+				//pass the new user on to any plugins that care to know
+				Event::run('ushahidi_action.user_edit', $user); 
 				// Send Confirmation email
 				$email_sent = $this->_send_email_confirmation($user);
 
-				if ($email_sent == true)
+				if ($email_sent)
 				{
 					$message_class = 'login_success';
 					$message = Kohana::lang('ui_main.login_confirmation_sent');
@@ -288,15 +278,14 @@ class Login_Controller extends Template_Controller {
 				$form = arr::overwrite($form, $post->as_array());
 
 				// populate the error fields, if any
-				$errors = arr::overwrite($errors, $post->errors('auth'));
+				$errors = arr::merge($errors, $post->errors('auth'));
 				$form_error = TRUE;
 			}
 
 			// END: New User Process
 
 		}
-		elseif ($_POST AND isset($_POST["action"])
-			AND $_POST["action"] == "forgot")
+		elseif ($_POST AND isset($_POST["action"]) AND $_POST["action"] == "forgot")
 		{
 
 			// START: Forgot Password Process
@@ -312,12 +301,12 @@ class Login_Controller extends Template_Controller {
 				$user = ORM::factory('user',$post->resetemail);
 
 				// Existing User??
-				if ($user->loaded==true)
+				if ($user->loaded)
 				{
 
 					// Determine which reset method to use. The options are to use the RiverID server
-					//   or to use the normal method which just resets the password locally.
-					if (kohana::config('riverid.enable') == TRUE AND ! empty($user->riverid))
+					//  or to use the normal method which just resets the password locally.
+					if (Kohana::config('riverid.enable') == TRUE AND ! empty($user->riverid))
 					{
 						// Reset on RiverID Server
 
@@ -337,21 +326,18 @@ class Login_Controller extends Template_Controller {
 						// the reset link expires automatically.
 						$secret = $auth->hash_password($user->email.$user->last_login);
 						$secret_link = url::site('login/index/'.$user->id.'/'.$secret.'?reset');
-						$this->_email_resetlink($post->resetemail,$user->name,$secret_link);
+						$email_sent = $this->_email_resetlink($post->resetemail,$user->name,$secret_link);
 					}
 
-					// Send Confirmation email
-					$email_sent = $this->_send_email_confirmation($user);
-
-					if ($email_sent == true)
+					if ($email_sent == TRUE)
 					{
 						$message_class = 'login_success';
 						$message = Kohana::lang('ui_main.login_confirmation_sent');
 					}
 					else
 					{
-						$message_class = 'login_success';
-						$message = Kohana::lang('ui_main.login_account_creation_successful');
+						$message_class = 'login_error';
+						$message = Kohana::lang('ui_main.unable_send_email');
 					}
 
 					$success = TRUE;
@@ -364,15 +350,14 @@ class Login_Controller extends Template_Controller {
 				$form = arr::overwrite($form, $post->as_array());
 
 				// populate the error fields, if any
-				$errors = arr::overwrite($errors, $post->errors('auth'));
+				$errors = arr::merge($errors, $post->errors('auth'));
 				$form_error = TRUE;
 			}
 
 			// END: Forgot Password Process
 
 		}
-		elseif ($_POST AND isset($_POST["action"])
-			AND $_POST["action"] == "changepass")
+		elseif ($_POST AND isset($_POST["action"]) AND $_POST["action"] == "changepass")
 		{
 
 			// START: Password Change Process
@@ -383,8 +368,8 @@ class Login_Controller extends Template_Controller {
 			$post->pre_filter('trim', TRUE);
 			$post->add_rules('token','required');
 			$post->add_rules('changeid','required');
-			$post->add_rules('password','required','length['.kohana::config('auth.password_length').']','alpha_numeric');
-			$post->add_rules('password','required','length['.kohana::config('auth.password_length').']','alpha_numeric','matches[password_again]');
+			$post->add_rules('password','required','length['.Kohana::config('auth.password_length').']','alpha_dash');
+			$post->add_rules('password','required','length['.Kohana::config('auth.password_length').']','alpha_dash','matches[password_again]');
 
 			if ($post->validate())
 			{
@@ -405,15 +390,14 @@ class Login_Controller extends Template_Controller {
 				$form = arr::overwrite($form, $post->as_array());
 
 				// populate the error fields, if any
-				$errors = arr::overwrite($errors, $post->errors('auth'));
+				$errors = arr::merge($errors, $post->errors('auth'));
 				$form_error = TRUE;
 			}
 
 			// END: Password Change Process
 
 		}
-		elseif ($_POST AND isset($_POST["action"])
-			AND $_POST["action"] == "resend_confirmation")
+		elseif ($_POST AND isset($_POST["action"]) AND $_POST["action"] == "resend_confirmation")
 		{
 			// START: Confirmation Email Resend Process
 
@@ -427,12 +411,12 @@ class Login_Controller extends Template_Controller {
 			{
 				$user = ORM::factory('user',$post->confirmation_email);
 
-				if ($user->loaded==true)
+				if ($user->loaded)
 				{
 					// Send Confirmation email
 					$email_sent = $this->_send_email_confirmation($user);
 
-					if ($email_sent == true)
+					if ($email_sent)
 					{
 						$message_class = 'login_success';
 						$message = Kohana::lang('ui_main.login_confirmation_sent');
@@ -459,19 +443,20 @@ class Login_Controller extends Template_Controller {
 				$form = arr::overwrite($form, $post->as_array());
 
 				// populate the error fields, if any
-				$errors = arr::overwrite($errors, $post->errors('auth'));
+				$errors = arr::merge($errors, $post->errors('auth'));
 				$form_error = TRUE;
 			}
 		}
 
 		// Only if we allow OpenID, should we even try this
-		if ( kohana::config('config.allow_openid') == true )
+		if (Kohana::config('config.allow_openid') == TRUE)
 		{
 
 			// START: OpenID Shenanigans
 
 			// OpenID Post
-			try {
+			try
+			{
 				$openid = new OpenID;
 
 				// Retrieve the Name (if available) and Email
@@ -485,7 +470,7 @@ class Login_Controller extends Template_Controller {
 						header("Location: " . $openid->authUrl());
 					}
 				}
-				elseif($openid->mode == "cancel")
+				elseif ($openid->mode == "cancel")
 				{
 					$openid_error = TRUE;
 					$message_class = 'login_error';
@@ -509,7 +494,7 @@ class Login_Controller extends Template_Controller {
 							$auth->force_login($openid_user->user->username);
 
 							// Exists Redirect to Dashboard
-							url::redirect("members/dashboard");
+							url::redirect($user->dashboard());
 						}
 						else
 						{
@@ -566,7 +551,7 @@ class Login_Controller extends Template_Controller {
 									$auth->login($username, $password, TRUE);
 
 									// Redirect to Dashboard
-									url::redirect("members/dashboard");
+									url::redirect($user->dashboard());
 								}
 							}
 						}
@@ -579,7 +564,7 @@ class Login_Controller extends Template_Controller {
 					}
 				}
 			}
-			catch(ErrorException $e)
+			catch (ErrorException $e)
 			{
 				$openid_error = TRUE;
 				$message_class = 'login_error';
@@ -618,7 +603,7 @@ class Login_Controller extends Template_Controller {
 		$this->template->site_tagline = Kohana::config('settings.site_tagline');
 
 		// Javascript Header
-		$this->template->js = new View('login_js');
+		$this->template->js = new View('login/login_js');
 		$this->template->js->action = $action;
 
 		// Header Nav
@@ -628,7 +613,7 @@ class Login_Controller extends Template_Controller {
 		if ( isset(Auth::instance()->get_user()->id) )
 		{
 			// Load User
-			$this->template->header_nav->loggedin_role = ( Auth::instance()->logged_in('member') ) ? "members" : "admin";
+			$this->template->header_nav->loggedin_role = Auth::instance()->get_user()->dashboard();
 			$this->template->header_nav->loggedin_user = Auth::instance()->get_user();
 		}
 		$this->template->header_nav->site_name = Kohana::config('settings.site_name');
@@ -674,7 +659,7 @@ class Login_Controller extends Template_Controller {
 		else
 		{
 			// Redirect to Login which will log themin if they are already logged in
-			url::redirect("login");
+			url::redirect("login?confirmation_failure");
 		}
 
 
@@ -727,18 +712,17 @@ class Login_Controller extends Template_Controller {
 					$auth->force_login($openid_user->user->username);
 
 					// Exists Redirect to Dashboard
-					url::redirect("members/dashboard");
+					url::redirect($auth->get_user()->dashboard());
 				}
 				else
 				{
 					// Does this login have the required email??
-					if ( ! isset($new_openid["email"]) OR
-						empty($new_openid["email"]))
+					if ( ! isset($new_openid["email"]) OR empty($new_openid["email"]))
 					{
 						$openid_error = "User has not been logged in. No Email Address Found.";
 
 						// Redirect back to login
-						url::redirect("members/login");
+						url::redirect("login");
 					}
 					else
 					{
@@ -752,7 +736,7 @@ class Login_Controller extends Template_Controller {
 							$openid_error = $new_openid["email"] . " is already registered in our system.";
 
 							// Redirect back to login
-							url::redirect("members/login");
+							url::redirect("login");
 						}
 						else
 						{
@@ -785,7 +769,7 @@ class Login_Controller extends Template_Controller {
 							$auth->login($username, $password, TRUE);
 
 							// Redirect to Dashboard
-							url::redirect("members/dashboard");
+							url::redirect($auth->get_user()->dashboard());
 						}
 					}
 				}
@@ -911,12 +895,12 @@ class Login_Controller extends Template_Controller {
 	 */
 	private function _send_email_confirmation($user)
 	{
-		$settings = kohana::config('settings');
+		$settings = Kohana::config('settings');
 
 		// Check if we require users to go through this process
 		if ($settings['require_email_confirmation'] == 0)
 		{
-			return false;
+			return FALSE;
 		}
 
 		$email = $user->email;
@@ -924,7 +908,7 @@ class Login_Controller extends Template_Controller {
 		$user->code = $code;
 		$user->save();
 
-		$url = url::site()."login/verify/?c=$code&e=$email";
+		$url = url::site()."login/verify/?c=".urlencode($code)."&e=".urlencode($email);
 
 		$to = $email;
 		$from = array($settings['site_email'], $settings['site_name']);
@@ -934,7 +918,7 @@ class Login_Controller extends Template_Controller {
 
 		email::send($to, $from, $subject, $message, FALSE);
 
-		return true;
+		return TRUE;
 	}
 
 	/**
@@ -949,20 +933,20 @@ class Login_Controller extends Template_Controller {
 	private function _email_resetlink( $email, $name, $secret_url )
 	{
 		$to = $email;
-		$from = Kohana::lang('ui_admin.password_reset_from');
+		$from = array(Kohana::config('settings.site_email'), Kohana::config('settings.site_name'));
 		$subject = Kohana::lang('ui_admin.password_reset_subject');
 		$message = $this->_email_resetlink_message($name, $secret_url);
 
-		//email details
-		if( email::send( $to, $from, $subject, $message, FALSE ) == 1 )
-		{
-			return TRUE;
+		try {
+			$recipients = email::send( $to, $from, $subject, $message, FALSE );
 		}
-		else
+		catch (Exception $e)
 		{
+			Kohana::log('warning', Swift_LogContainer::getLog()->dump(true));
 			return FALSE;
 		}
 
+		return TRUE;
 	}
 
 	/**

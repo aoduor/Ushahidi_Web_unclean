@@ -37,6 +37,7 @@ class csrf_Core {
 			// Generates a hash of variable length random alpha-numeric string
 			$token = hash('sha256', text::random('alnum', rand(25, 32)));
 			Session::instance()->set('csrf-token', $token);
+			Kohana::log('debug', 'Regenerated CSRF token: '.$token);
 		}
 
 		return $token;
@@ -52,34 +53,8 @@ class csrf_Core {
 	{
 		// Get the current token and destroy the session value
 		$current_token = self::token();
-		Session::instance()->delete(self::$_csrf_session_key);
 
-		return $token == $current_token;
-	}
-
-	/**
-	 * Generates and returns Javascript code snippet for
-	 * obtaining a CSRF token from the server. Requires jQuery.
-	 *
-	 * @return string
-	 */
-	public static function javascript()
-	{
-		// JS snippet to get token
-		$js = '<script type="text/javascript">'
-		    . 'function getCSRFToken() {'
-		    . ' var token = null;'
-		    . ' $.ajax({'
-		    . '	    url: "'.url::site('csrf/generate_token').'",'
-		    . '	    async: false,'
-		    . '     success: function(json){ token = json.token; },'
-		    . '     dataType: "json"'
-		    . ' });'
-		    . ' return token;'
-		    . '}'
-		    . '</script>';
-
-		return $js;
+		return $token === $current_token;
 	}
 }
 

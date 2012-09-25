@@ -1,13 +1,20 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-	<title><?php echo $page_title.$site_name; ?></title>
+	<title><?php echo html::specialchars($page_title.$site_name); ?></title>
+	<?php if (!Kohana::config('settings.enable_timeline')) { ?>
+		<style>
+			#graph{display:none;}
+			#map{height:480px;}
+		</style>
+	<?php } ?>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 	<?php echo $header_block; ?>
 	<?php
 	// Action::header_scripts - Additional Inline Scripts from Plugins
 	Event::run('ushahidi_action.header_scripts');
 	?>
+
 </head>
 
 <?php
@@ -16,7 +23,7 @@
   // we're on the home page
   if (count($uri_segments) == 0)
   {
-    $body_class = "page-main";
+  	$body_class = "page-main";
   }
   // 1st tier pages
   elseif (count($uri_segments) == 1)
@@ -27,10 +34,10 @@
   elseif (count($uri_segments) >= 2)
   {
     $body_class = "page-".$uri_segments[0]."-".$uri_segments[1];
-  };
+  }
 ?>
 
-<body id="page" class="<?php echo $body_class; ?>" />
+<body id="page" class="<?php echo $body_class; ?>">
 
 	<?php echo $header_nav; ?>
 
@@ -55,14 +62,14 @@
 			<!-- / searchbox -->
 
 			<!-- logo -->
-			<?php if($banner == NULL){ ?>
+			<?php if ($banner == NULL): ?>
 			<div id="logo">
 				<h1><a href="<?php echo url::site();?>"><?php echo $site_name; ?></a></h1>
 				<span><?php echo $site_tagline; ?></span>
 			</div>
-			<?php }else{ ?>
+			<?php else: ?>
 			<a href="<?php echo url::site();?>"><img src="<?php echo $banner; ?>" alt="<?php echo $site_name; ?>" /></a>
-			<?php } ?>
+			<?php endif; ?>
 			<!-- / logo -->
 
 			<!-- submit incident -->

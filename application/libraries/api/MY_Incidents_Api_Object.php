@@ -22,19 +22,19 @@ class Incidents_Api_Object extends Api_Object_Core {
 	 * Record sorting order ASC or DESC
 	 * @var string
 	 */
-	private $sort;
+	protected $sort;
 
 	/**
 	 * Column name by which to order the records
 	 * @var string
 	 */
-	private $order_field;
+	protected $order_field;
 
 	/**
 	 * Should the response include comments
 	 * @var string
 	 */
-	private $comments;
+	protected $comments;
 
 	/**
 	 * Constructor
@@ -96,13 +96,41 @@ class Incidents_Api_Object extends Api_Object_Core {
 					AND $this->api_service->verify_array_index($this->request, 'longitude'))
 				{
 					// Build out the parameters
+					$lat = $this->check_cordinate_value($this->request['latitude']);
+					$lon = $this->check_cordinate_value($this->request['longitude']);
 					$params = array(
-						'l.latitude = '.$this->check_id_value($this->request['latitude']),
-						'l.longitude ='.$this->check_id_value($this->request['longitude'])
+						'l.latitude = '.$this->request['latitude'],
+						'l.longitude = '.$this->request['longitude']
 					);
-
-					// Fetch the incidents
-					$this->response_data = $this->_get_incidents($params);
+					if ($lat==0 or $lon==0)
+					{
+						$this->set_error_message(array(
+							"error" => $this->api_service->get_error_msg(001, 'invalid latitude or longitude values')
+						));
+						
+						return;
+					}
+					else
+					{
+						if(isset($this->request['radius']))
+						{
+							$rad = $this->check_id_value($this->request['radius']);
+							//we take this to be radius of the earth, this sems to be more efficient than perming them directly at the query level
+							$R = 6371;
+							$maxLat = $lat + rad2deg($rad/$R);
+							$minLat = $lat - rad2deg($rad/$R);
+							// compensate for degrees longitude getting smaller with increasing latitude
+							$maxLon = $lon + rad2deg($rad/$R/cos(deg2rad($lat)));
+							$minLon = $lon - rad2deg($rad/$R/cos(deg2rad($lat)));
+							$params = array(
+								'l.latitude > '.$minLat,
+								'l.latitude < '.$maxLat,
+								'l.longitude > '.$minLon,
+								'l.longitude < '.$maxLon
+							);
+						}
+						$this->response_data = $this->_get_incidents($params);
+					}
 				}
 				else
 				{
@@ -243,7 +271,8 @@ class Incidents_Api_Object extends Api_Object_Core {
 
 			// Get incidents based on a box using two lat,lon coords
 			case "bounds":
-				$this->response_data = $this->_get_incidents_by_bounds($this->request['sw'],$this->request['ne'],$this->request['c']);
+				$c = isset($this->request['c']) ? $this->request['c'] : 0;
+				$this->response_data = $this->_get_incidents_by_bounds($this->request['sw'],$this->request['ne'],$c);
 			break;
 
 			// Error therefore set error message
@@ -258,7 +287,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 	 * Checks for optional parameters in the request and sets the values
 	 * in the respective class members
 	 */
-	private function _check_optional_parameters()
+	protected function _check_optional_parameters()
 	{
 		// Check if the sort parameter has been specified
 		if ($this->api_service->verify_array_index($this->request, 'sort'))
@@ -319,7 +348,6 @@ class Incidents_Api_Object extends Api_Object_Core {
 	 * Generic function to get reports by given set of parameters
 	 *
 	 * @param string $where SQL where clause
-	 * @param int $limit No. of records to return - set to 20 by default
 	 * @return string XML or JSON string
 	 */
 	public function _get_incidents($where = array())
@@ -433,7 +461,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 		//
 		if ($this->comments) {
 			$this->query = "SELECT id, incident_id, comment_author, comment_email, "
-						. "comment_description, comment_rating, comment_date "
+						. "comment_description, comment_date "
 						. "FROM ".$this->table_prefix."comment AS c "
 						. "WHERE c.incident_id IN (".implode(',', $incident_ids).")";
 
@@ -454,7 +482,6 @@ class Incidents_Api_Object extends Api_Object_Core {
 				$comment_items[$incident_comment->incident_id][$i]['comment_author'] = $incident_comment->comment_author;
 				$comment_items[$incident_comment->incident_id][$i]['comment_email'] = $incident_comment->comment_email;
 				$comment_items[$incident_comment->incident_id][$i]['comment_description'] = $incident_comment->comment_description;
-				$comment_items[$incident_comment->incident_id][$i]['comment_rating'] = $incident_comment->comment_rating;
 				$comment_items[$incident_comment->incident_id][$i]['comment_date'] = $incident_comment->comment_date;
 				$i++;
 			}
@@ -493,7 +520,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 			{
 				foreach ($category_items[$item->incident_id] as $category_item)
 				{
-					if ($this->response_type == 'json')
+					if ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 					{
 						$json_report_categories[$item->incident_id][] = array(
 							"category"=> array(
@@ -524,7 +551,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 			{
 				foreach ($comment_items[$item->incident_id] as $comment_item)
 				{
-					if ($this->response_type == 'json')
+					if ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 					{
 						$json_report_comments[$item->incident_id][] = array(
 							"comment"=> $comment_item
@@ -537,7 +564,6 @@ class Incidents_Api_Object extends Api_Object_Core {
 						$xml->writeElement('comment_author',$comment_item['comment_author']);
 						$xml->writeElement('comment_email',$comment_item['comment_email']);
 						$xml->writeElement('comment_description',$comment_item['comment_description']);
-						$xml->writeElement('comment_rating',$comment_item['comment_rating']);
 						$xml->writeElement('comment_date',$comment_item['comment_date']);
 						$xml->endElement();
 					}
@@ -572,7 +598,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 							$url_prefix = '';
 						}
 
-						if($this->response_type == 'json')
+						if($this->response_type == 'json' OR $this->response_type == 'jsonp')
 						{
 							$json_report_media[$item->incident_id][] = array(
 								"id" => $media_item['mediaid'],
@@ -640,7 +666,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 			$xml->endElement(); // End incident
 
 			// Check for response type
-			if ($this->response_type == 'json')
+			if ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 			{
 				$json_reports[] = array(
 					"incident" => array(
@@ -672,7 +698,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 			"error" => $this->api_service->get_error_msg(0)
 		);
 
-		if ($this->response_type == 'json')
+		if ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 		{
 			return $this->array_as_json($data);
 
@@ -687,9 +713,8 @@ class Incidents_Api_Object extends Api_Object_Core {
 			$xml->endElement();//end error
 			$xml->endElement(); // end response
 			return $xml->outputMemory(true);
-        }
-
-    }
+		}
+	}
 
 	/**
 	 * Returns the number of reports in each category
@@ -730,7 +755,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 		);
 
 		// Return data
-		$this->response_data =  ($this->response_type == 'json')
+		$this->response_data =  ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 			? $this->array_as_json($data)
 			: $this->array_as_xml($data, $replar);
 
@@ -745,7 +770,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 	 * @param int $c is the categoryid
 	 * @return string XML or JSON string containing the fetched incidents
 	 */
-	private function _get_incidents_by_bounds($sw, $ne, $c = 0)
+	private function _get_incidents_by_bounds($sw, $ne, $c)
 	{
 		// Break apart location variables, if necessary
 		$southwest = array();
@@ -785,10 +810,8 @@ class Incidents_Api_Object extends Api_Object_Core {
 		{
 			array_push($params, 'c.id = '.$c);
 		}
-
 		return $this->_get_incidents($params);
-
-    }
+	}
 
 	/**
 	 * Gets the number of approved reports
@@ -810,7 +833,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 			break;
 		}
 
-		if ($this->response_type == 'json')
+		if ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 		{
 			$json_count[] = array("count" => $count);
 		}
@@ -829,7 +852,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 			"error" => $this->api_service->get_error_msg(0)
 		);
 
-		$this->response_data = ($this->response_type == 'json')
+		$this->response_data = ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 			? $this->array_as_json($data)
 			: $this->array_as_xml($data, $this->replar);
 	}
@@ -858,7 +881,7 @@ class Incidents_Api_Object extends Api_Object_Core {
 			break;
 		}
 
-		if ($this->response_type == 'json')
+		if ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 		{
 			$json_latlon[] = array(
 				"latitude" => $latitude,
@@ -885,8 +908,14 @@ class Incidents_Api_Object extends Api_Object_Core {
 		);
 
 		// Return data
-		$this->response_data =  ($this->response_type == 'json')
+		$this->response_data =  ($this->response_type == 'json' OR $this->response_type == 'jsonp')
 			? $this->array_as_json($data)
 			: $this->array_as_xml($data, $replar);
 	}
+
+	protected function check_cordinate_value($cord)
+	{
+		return floatval($cord);
+	}
+
 }

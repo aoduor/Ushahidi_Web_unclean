@@ -54,9 +54,6 @@ class Main_Controller extends Template_Controller {
 	 */
 	protected $themes;
 
-	// User Object
-	protected $user;
-
 	public function __construct()
 	{
 		parent::__construct();
@@ -134,20 +131,16 @@ class Main_Controller extends Template_Controller {
 		if ( isset(Auth::instance()->get_user()->id) )
 		{
 			// Load User
-			$this->template->header->header_nav->loggedin_role = ( Auth::instance()->logged_in('member') ) ? "members" : "admin";
+			$this->template->header->header_nav->loggedin_role = Auth::instance()->get_user()->dashboard();
 			$this->template->header->header_nav->loggedin_user = Auth::instance()->get_user();
 		}
 		$this->template->header->header_nav->site_name = Kohana::config('settings.site_name');
-
-        // Load profiler
-        //$this->profiler = new Profiler;
-
 	}
 
 	/**
 	 * Retrieves Categories
 	 */
-	protected function get_categories($selected_categories)
+	protected function get_categories()
 	{
 	  $categories = ORM::factory('category')
 	    ->where('category_visible', '1')
@@ -174,14 +167,14 @@ class Main_Controller extends Template_Controller {
     public function index()
     {
         $this->template->header->this_page = 'home';
-        $this->template->content = new View('main');
+        $this->template->content = new View('main/layout');
 
 		// Cacheable Main Controller
 		$this->is_cachable = TRUE;
 
 		// Map and Slider Blocks
-		$div_map = new View('main_map');
-		$div_timeline = new View('main_timeline');
+		$div_map = new View('main/map');
+		$div_timeline = new View('main/timeline');
 
 		// Filter::map_main - Modify Main Map Block
 		Event::run('ushahidi_filter.map_main', $div_map);
@@ -197,7 +190,10 @@ class Main_Controller extends Template_Controller {
 		$site_message = trim(Kohana::config('settings.site_message'));
 		if($site_message != '')
 		{
+			// Send the site message to both the header and the main content body
+			//   so a theme can utilize it in either spot.
 			$this->template->content->site_message = $site_message;
+			$this->template->header->site_message = $site_message;
 		}
 
 		// Get locale
@@ -205,11 +201,12 @@ class Main_Controller extends Template_Controller {
 
         // Get all active top level categories
 		$parent_categories = array();
-		foreach (ORM::factory('category')
-				->where('category_visible', '1')
-				->where('id != 5')
-				->where('parent_id', '0')
-				->find_all() as $category)
+		$all_parents = ORM::factory('category')
+		    ->where('category_visible', '1')
+		    ->where('parent_id', '0')
+		    ->find_all();
+
+		foreach ($all_parents as $category)
 		{
 			// Get The Children
 			$children = array();
@@ -221,7 +218,10 @@ class Main_Controller extends Template_Controller {
 					// Check for localization of child category
 					$display_title = Category_Lang_Model::category_title($child->id,$l);
 
-					$ca_img = ($child->category_image != NULL) ? url::convert_uploaded_to_abs($child->category_image) : NULL;
+					$ca_img = ($child->category_image != NULL)
+					    ? url::convert_uploaded_to_abs($child->category_image)
+					    : NULL;
+					
 					$children[$child->id] = array(
 						$display_title,
 						$child->category_color,
@@ -234,7 +234,10 @@ class Main_Controller extends Template_Controller {
 			$display_title = Category_Lang_Model::category_title($category->id,$l);
 
 			// Put it all together
-			$ca_img = ($category->category_image != NULL) ? url::convert_uploaded_to_abs($category->category_image) : NULL;
+			$ca_img = ($category->category_image != NULL)
+			    ? url::convert_uploaded_to_abs($category->category_image)
+			    : NULL;
+
 			$parent_categories[$category->id] = array(
 				$display_title,
 				$category->category_color,
@@ -265,6 +268,14 @@ class Main_Controller extends Template_Controller {
 		// Get Default Color
 		$this->template->content->default_map_all = Kohana::config('settings.default_map_all');
 
+		// Get default icon
+		$this->template->content->default_map_all_icon = '';
+		if (Kohana::config('settings.default_map_all_icon_id'))
+		{
+			$icon_object = ORM::factory('media')->find(Kohana::config('settings.default_map_all_icon_id'));
+			$this->template->content->default_map_all_icon = Kohana::config('upload.relative_directory')."/".$icon_object->media_medium;
+		}
+
 		// Get Twitter Hashtags
 		$this->template->content->twitter_hashtag_array = array_filter(array_map('trim',
 			explode(',', Kohana::config('settings.twitter_hashtags'))));
@@ -293,7 +304,11 @@ class Main_Controller extends Template_Controller {
 
 		// Get external apps
 		$external_apps = array();
-		$external_apps = ORM::factory('externalapp')->find_all();
+		// Catch errors, in case we have an old db
+		try {
+			$external_apps = ORM::factory('externalapp')->find_all();
+		}
+		catch(Exception $e) {}
 		$this->template->content->external_apps = $external_apps;
 
         // Get The START, END and Incident Dates
@@ -303,8 +318,13 @@ class Main_Controller extends Template_Controller {
 		$display_endDate = 0;
 
 		$db = new Database();
+		
         // Next, Get the Range of Years
-		$query = $db->query('SELECT DATE_FORMAT(incident_date, \'%Y-%c\') AS dates FROM '.$this->table_prefix.'incident WHERE incident_active = 1 GROUP BY DATE_FORMAT(incident_date, \'%Y-%c\') ORDER BY incident_date');
+		$query = $db->query('SELECT DATE_FORMAT(incident_date, \'%Y-%c\') AS dates '
+		    . 'FROM '.$this->table_prefix.'incident '
+		    . 'WHERE incident_active = 1 '
+		    . 'GROUP BY DATE_FORMAT(incident_date, \'%Y-%c\') '
+		    . 'ORDER BY incident_date');
 
 		$first_year = date('Y');
 		$last_year = date('Y');
@@ -320,7 +340,7 @@ class Main_Controller extends Template_Controller {
 			$month = $date[1];
 
 			// Set first year
-			if($i == 0)
+			if ($i == 0)
 			{
 				$first_year = $year;
 				$first_month = $month;
@@ -335,19 +355,20 @@ class Main_Controller extends Template_Controller {
 
 		$show_year = $first_year;
 		$selected_start_flag = TRUE;
-		while($show_year <= $last_year)
+
+		while ($show_year <= $last_year)
 		{
 			$startDate .= "<optgroup label=\"".$show_year."\">";
 
 			$s_m = 1;
-			if($show_year == $first_year)
+			if ($show_year == $first_year)
 			{
 				// If we are showing the first year, the starting month may not be January
 				$s_m = $first_month;
 			}
 
 			$l_m = 12;
-			if($show_year == $last_year)
+			if ($show_year == $last_year)
 			{
 				// If we are showing the last year, the ending month may not be December
 				$l_m = $last_month;
@@ -355,7 +376,7 @@ class Main_Controller extends Template_Controller {
 
 			for ( $i=$s_m; $i <= $l_m; $i++ )
 			{
-				if ( $i < 10 )
+				if ($i < 10 )
 				{
 					// All months need to be two digits
 					$i = "0".$i;
@@ -372,6 +393,7 @@ class Main_Controller extends Template_Controller {
 			$startDate .= "</optgroup>";
 
 			$endDate .= "<optgroup label=\"".$show_year."\">";
+			
 			for ( $i=$s_m; $i <= $l_m; $i++ )
 			{
 				if ( $i < 10 )
@@ -388,6 +410,7 @@ class Main_Controller extends Template_Controller {
 				}
 				$endDate .= ">".date('M', mktime(0,0,0,$i,1))." ".$show_year."</option>";
 			}
+			
 			$endDate .= "</optgroup>";
 
 			// Show next year
@@ -407,61 +430,34 @@ class Main_Controller extends Template_Controller {
 		$this->themes->main_page = TRUE;
 
 		// Map Settings
-		$clustering = Kohana::config('settings.allow_clustering');
 		$marker_radius = Kohana::config('map.marker_radius');
 		$marker_opacity = Kohana::config('map.marker_opacity');
 		$marker_stroke_width = Kohana::config('map.marker_stroke_width');
 		$marker_stroke_opacity = Kohana::config('map.marker_stroke_opacity');
 
-        // pdestefanis - allows to restrict the number of zoomlevels available
-		$numZoomLevels = Kohana::config('map.numZoomLevels');
-		$minZoomLevel = Kohana::config('map.minZoomLevel');
-	   	$maxZoomLevel = Kohana::config('map.maxZoomLevel');
+		$this->themes->js = new View('main/main_js');
 
-		// pdestefanis - allows to limit the extents of the map
-		$lonFrom = Kohana::config('map.lonFrom');
-		$latFrom = Kohana::config('map.latFrom');
-		$lonTo = Kohana::config('map.lonTo');
-		$latTo = Kohana::config('map.latTo');
+		$this->themes->js->marker_radius = ($marker_radius >=1 AND $marker_radius <= 10 )
+		    ? $marker_radius
+		    : 5;
 
-		$this->themes->js = new View('main_js');
-		$this->themes->js->json_url = ($clustering == 1) ?
-			"json/cluster" : "json";
-		$this->themes->js->marker_radius =
-			($marker_radius >=1 && $marker_radius <= 10 ) ? $marker_radius : 5;
-		$this->themes->js->marker_opacity =
-			($marker_opacity >=1 && $marker_opacity <= 10 )
-			? $marker_opacity * 0.1  : 0.9;
-		$this->themes->js->marker_stroke_width =
-			($marker_stroke_width >=1 && $marker_stroke_width <= 5 ) ? $marker_stroke_width : 2;
-		$this->themes->js->marker_stroke_opacity =
-			($marker_stroke_opacity >=1 && $marker_stroke_opacity <= 10 )
-			? $marker_stroke_opacity * 0.1  : 0.9;
+		$this->themes->js->marker_opacity = ($marker_opacity >=1 AND $marker_opacity <= 10 )
+		    ? $marker_opacity * 0.1
+		    : 0.9;
 
-		// pdestefanis - allows to restrict the number of zoomlevels available
-		$this->themes->js->numZoomLevels = $numZoomLevels;
-		$this->themes->js->minZoomLevel = $minZoomLevel;
-		$this->themes->js->maxZoomLevel = $maxZoomLevel;
+		$this->themes->js->marker_stroke_width = ($marker_stroke_width >=1 AND $marker_stroke_width <= 5)
+		    ? $marker_stroke_width
+		    : 2;
 
-		// pdestefanis - allows to limit the extents of the map
-		$this->themes->js->lonFrom = $lonFrom;
-		$this->themes->js->latFrom = $latFrom;
-		$this->themes->js->lonTo = $lonTo;
-		$this->themes->js->latTo = $latTo;
+		$this->themes->js->marker_stroke_opacity = ($marker_stroke_opacity >=1 AND $marker_stroke_opacity <= 10)
+		    ? $marker_stroke_opacity * 0.1
+		    : 0.9;
 
-		$this->themes->js->default_map = Kohana::config('settings.default_map');
-		$this->themes->js->default_zoom = Kohana::config('settings.default_zoom');
-		$this->themes->js->latitude = Kohana::config('settings.default_lat');
-		$this->themes->js->longitude = Kohana::config('settings.default_lon');
-		$this->themes->js->default_map_all = Kohana::config('settings.default_map_all');
 
 		$this->themes->js->active_startDate = $display_startDate;
 		$this->themes->js->active_endDate = $display_endDate;
 
 		$this->themes->js->blocks_per_row = Kohana::config('settings.blocks_per_row');
-
-		//$myPacker = new javascriptpacker($js , 'Normal', false, false);
-		//$js = $myPacker->pack();
 
 		// Build Header and Footer Blocks
 		$this->template->header->header_block = $this->themes->header_block();

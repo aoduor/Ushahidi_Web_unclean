@@ -87,6 +87,11 @@ final class Api_Service {
 		$this->request = ($_SERVER['REQUEST_METHOD'] == 'POST')
 			? $_POST
 			: $_GET;
+			
+		// Reset the session - API should be stateless
+		$_SESSION = array();
+		// Especially reset auth
+		Session::instance()->set(Kohana::config('auth.session_key'), null);
 
 		// Load the API configuration file
 		Kohana::config_load('api');
@@ -202,44 +207,68 @@ final class Api_Service {
 	 * Log user in.
 	 * This method is mainly used for admin tasks performed via the API
 	 *
-	 * @param string $username User's username.
-	 * @param string $password User's password.
+	 * @param bool $admin require admin access?
+	 * @param bool $member require member access?
 	 * @return mixed user_id, FALSE if authentication fails
 	 */
-	public function _login()
+	public function _login($admin = FALSE, $member = FALSE)
     {
 		$auth = Auth::instance();
 
 		// Is user previously authenticated?
 		if ($auth->logged_in())
 		{
-			return $auth->get_user()->id;
+			// Check if admin privileges are required
+			if ($admin == FALSE OR $auth->has_permission('admin_ui'))
+			{
+				return $auth->get_user()->id;
+			}
+			// Check if member perms required, assume admins also have member perms
+			else if ($member == FALSE OR $auth->has_permission('member_ui') OR $auth->has_permission('admin_ui'))
+			{
+				return $auth->get_user()->id;
+			}
+			else
+			{
+				return FALSE;
+			}
 		}
 		else
-        {
-            //Get username and password
-            if (isset($_SERVER['PHP_AUTH_USER']) &&
-                isset($_SERVER['PHP_AUTH_PW']))
-            {
-                $username = filter_var($_SERVER['PHP_AUTH_USER'],
-                    FILTER_SANITIZE_STRING,
-                    FILTER_FLAG_ENCODE_HIGH|FILTER_FLAG_ENCODE_LOW);
+		{
+			//Get username and password
+			if (isset($_SERVER['PHP_AUTH_USER']) &&
+				isset($_SERVER['PHP_AUTH_PW']))
+			{
+				$username = filter_var($_SERVER['PHP_AUTH_USER'],
+				FILTER_SANITIZE_STRING,
+				FILTER_FLAG_ENCODE_HIGH|FILTER_FLAG_ENCODE_LOW);
+				
+				$password = filter_var($_SERVER['PHP_AUTH_PW'],
+				FILTER_SANITIZE_STRING,
+				FILTER_FLAG_ENCODE_HIGH|FILTER_FLAG_ENCODE_LOW);
 
-                $password = filter_var($_SERVER['PHP_AUTH_PW'],
-                    FILTER_SANITIZE_STRING,
-                    FILTER_FLAG_ENCODE_HIGH|FILTER_FLAG_ENCODE_LOW);
-
-				try {
+				try
+				{
 					if ($auth->login($username, $password))
 					{
-						return $auth->get_user()->id;
+						// Check if admin privileges are required
+						if ($admin == FALSE OR $auth->has_permission('admin_ui'))
+						{
+							return $auth->get_user()->id;
+						}
+						else
+						{
+							return FALSE;
+						}
 					}
 					else
 					{
 						$this->_prompt_login();
 						return FALSE;
 					}
-				} catch (Exception $e) {
+				}
+				catch (Exception $e)
+				{
 					$this->_prompt_login();
 					return FALSE;
 				}

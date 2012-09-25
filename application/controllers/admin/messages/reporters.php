@@ -22,7 +22,7 @@ class Reporters_Controller extends Admin_Controller
 		$this->template->this_page = 'messages';
 		
 		// If user doesn't have access, redirect to dashboard
-		if ( ! admin::permissions($this->user, "messages_reporters"))
+		if ( ! $this->auth->has_permission("messages_reporters"))
 		{
 			url::redirect(url::site().'admin/dashboard');
 		}
@@ -30,29 +30,8 @@ class Reporters_Controller extends Admin_Controller
 	
 	public function index($service_id = 1)
 	{
-		$this->template->content = new View('admin/reporters');
+		$this->template->content = new View('admin/reporters/main');
 		$this->template->content->title = Kohana::lang('ui_admin.reporters');
-		
-		$filter = "1=1";
-		$search_type = "";
-		$keyword = "";
-		// Get Search Type (If Any)
-		if ($service_id)
-		{
-			$search_type = $service_id;
-			$filter .= " AND (service_id='".$service_id."')";
-		}
-		else
-		{
-			$search_type = "0";
-		}
-		
-		// Get Search Keywords (If Any)
-		if (isset($_GET['k']) AND !empty($_GET['k']))
-		{
-			$keyword = $_GET['k'];
-			$filter .= " AND (service_account LIKE'%".$_GET['k']."%')";
-		}
 		
 		// setup and initialize form field names
 		$form = array
@@ -119,7 +98,7 @@ class Reporters_Controller extends Admin_Controller
 					}
 					
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.deleted'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.deleted'));
 				}
 				elseif( $post->action == 'l' )			// Modify Level Action
 				{
@@ -135,7 +114,7 @@ class Reporters_Controller extends Admin_Controller
 					}
 					
 					$form_saved = TRUE;
-					$form_action = strtoupper(Kohana::lang('ui_admin.modified'));
+					$form_action = utf8::strtoupper(Kohana::lang('ui_admin.modified'));
 				}
 				else if( $post->action == 'a' ) 		// Save Action
 				{
@@ -164,7 +143,7 @@ class Reporters_Controller extends Admin_Controller
 							$reporter->save();
 
 							$form_saved = TRUE;
-							$form_action = strtoupper(Kohana::lang('ui_admin.modified'));
+							$form_action = utf8::strtoupper(Kohana::lang('ui_admin.modified'));
 						}
 					}
 				}
@@ -179,6 +158,24 @@ class Reporters_Controller extends Admin_Controller
 				$errors = arr::overwrite($errors, $post->errors('reporters'));
 				$form_error = TRUE;
 			}
+		}
+
+		// Start building query
+		$filter = '1=1 ';
+		
+		// Default search type to service id
+		$search_type = ( isset($_GET['s']) ) ? intval($_GET['s']) : intval($service_id);
+		if ($search_type > 0)
+		{
+			$filter .= 'AND service_id = '.intval($search_type).' ';
+		}
+		
+		// Get Search Keywords (If Any)
+		$keyword = '';
+		if (isset($_GET['k']) AND !empty($_GET['k']))
+		{
+			$keyword = $_GET['k'];
+			$filter .= 'AND service_account LIKE \'%'.Database::instance()->escape_str($_GET['k']).'%\' ';
 		}
 
 		// Pagination
@@ -220,7 +217,7 @@ class Reporters_Controller extends Admin_Controller
 		
 		// Javascript Header
         $this->template->map_enabled = TRUE;
-        $this->template->js = new View('admin/reporters_js');
+        $this->template->js = new View('admin/reporters/reporters_js');
 		$this->template->js->default_map = Kohana::config('settings.default_map');
 		$this->template->js->default_zoom = Kohana::config('settings.default_zoom');
 		$this->template->js->latitude = Kohana::config('settings.default_lat');

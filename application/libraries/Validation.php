@@ -30,10 +30,19 @@ class Validation_Core extends ArrayObject {
 
 	// Errors
 	protected $errors = array();
+	protected $error_message_args = array();
 	protected $messages = array();
 
 	// Checks if there is data to validate.
 	protected $submitted;
+
+	/**
+	 * Whether CSRF validation has succeeded
+	 * @var bool
+	 */
+	protected $csrf_validation_failed = FALSE;
+
+	public static $is_api_request = FALSE;
 
 	/**
 	 * Creates a new Validation instance.
@@ -363,10 +372,69 @@ class Validation_Core extends ArrayObject {
 	 * they are undefined. Validation will only be run if there is data already
 	 * in the array.
 	 *
+	 * @param bool $validate_csrf When TRUE, performs CSRF token validation
 	 * @return bool
 	 */
-	public function validate()
+	public function validate($validate_csrf = TRUE)
 	{
+		// CSRF token field
+		$csrf_token_key = 'form_auth_token';
+
+		if (array_key_exists($csrf_token_key, $this))
+		{
+			unset ($this[$csrf_token_key]);
+		}
+
+		// Delete the CSRF token field if it's in the validation
+		// rules
+		if (array_key_exists($csrf_token_key, $this->callbacks))
+		{
+			unset ($this->callbacks[$csrf_token_key]);
+		}
+		elseif (array_key_exists($csrf_token_key, $this->rules))
+		{
+			unset ($this->rules[$csrf_token_key]);
+		}
+
+		// Disable CSRF for XHR
+		// Same method as django CSRF protection: 
+		//     http://michael-coates.blogspot.co.nz/2010/12/djangos-built-in-csrf-defense-for-ajax.html
+		if (request::is_ajax())
+		{
+			$validate_csrf = FALSE;
+		}
+
+		// Perform CSRF validation for all HTTP POST requests
+		// where CSRF validation is enabled and the request
+		// was not submitted via the API
+		if ($_POST AND $validate_csrf AND ! Validation::$is_api_request)
+		{
+			// Check if CSRF module is loaded
+			if (in_array(MODPATH.'csrf', Kohana::config('config.modules')))
+			{
+				// Check for presence of CSRF token in HTTP POST payload
+				$form_auth_token = (isset($_POST[$csrf_token_key]))
+				    ? $_POST[$csrf_token_key]
+
+					    // Generate invalid token
+				    : text::random('alnum', 10);
+				
+				// Validate the token
+				if ( ! csrf::valid($form_auth_token))
+				{
+					Kohana::log('debug', 'Invalid CSRF token: '.$form_auth_token);
+					Kohana::log('debug', 'Actual CSRF token: '.csrf::token());
+					// Flag CSRF validation as having failed
+					$this->csrf_validation_failed = TRUE;
+
+					// Set the error message
+					$this->errors[$csrf_token_key] = Kohana::lang('csrf.form_auth_token.error');
+
+					return FALSE;
+				}
+			}
+		}
+
 		// All the fields that are being validated
 		$all_fields = array_unique(array_merge
 		(
@@ -594,13 +662,19 @@ class Validation_Core extends ArrayObject {
 	 * @chainable
 	 * @param   string  input name
 	 * @param   string  unique error name
+	 * @param   array   extra vars to pass to kohana::lang()
 	 * @return  object
 	 */
-	public function add_error($field, $name)
+	public function add_error($field, $name, $lang_vars = FALSE)
 	{
 		if (isset($this[$field]) OR $field == 'custom')
 		{
 			$this->errors[$field] = $name;
+			// Save error message vars
+			if ($lang_vars)
+			{
+				$this->error_message_args[$field] = $lang_vars;
+			}
 		}
 
 		return $this;
@@ -665,8 +739,10 @@ class Validation_Core extends ArrayObject {
 			{
 				// Key for this input error
 				$key = "$file.$input.$error";
+				
+				$message_vars = isset($this->error_message_args[$input]) ? $this->error_message_args[$input] : array();
 
-				if (($errors[$input] = Kohana::lang($key)) === $key)
+				if (($errors[$input] = Kohana::lang($key, $message_vars)) === $key)
 				{
 					// Get the default error message.      Note: commented out by BH
 					//$errors[$input] = Kohana::lang("$file.$input.default");
@@ -674,10 +750,15 @@ class Validation_Core extends ArrayObject {
 					// Don't get the default message because we rarely set it. Pass the key since it will
 					//   provide more clues as to the problem than what we are currently providing. Also,
 					//   this allows "custom" inputs to pass through, bypassing localization by design
-					$errors[$input] = $error;
+					//$errors[$input] = $key;
 				}
 			}
 
+			// CSRF validation errors MUST always be returned
+			if ($this->csrf_validation_failed)
+			{
+				$errors['form_auth_token'] = $this->errors['form_auth_token'];
+			}
 			return $errors;
 		}
 	}

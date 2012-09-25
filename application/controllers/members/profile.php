@@ -72,9 +72,10 @@ class Profile_Controller extends Members_Controller
 			// If Password field is not blank
 			if ( ! empty($post->new_password))
 			{
-				$post->add_rules('new_password','required','length['.kohana::config('auth.password_length').']' ,'alpha_numeric','matches[password_again]');
+				$post->add_rules('new_password','required','length['.kohana::config('auth.password_length').']' ,'alpha_dash','matches[password_again]');	
 			}
-
+			//for plugins that want to know what the user had to say about things
+			Event::run('ushahidi_action.profile_post_member', $post);
 			if ($post->validate())
 			{
 
@@ -102,9 +103,14 @@ class Profile_Controller extends Members_Controller
 					$user->notify = $post->notify;
 					$user->public_profile = $post->public_profile;
 					$user->color = $post->color;
-					$user->password !='' ? $user->password = $post->new_password : '';
 					$user->needinfo = $needinfo;
+					if ($post->new_password != '')
+					{
+						$user->password = $post->new_password;
+					}					
 					$user->save();
+					//for plugins that want to know how the user now stands
+					Event::run('ushahidi_action.profile_edit_member', $user);
 
 					// We also need to update the RiverID server with the new password if
 	                //    we are using RiverID and a password is being passed
@@ -170,7 +176,7 @@ class Profile_Controller extends Members_Controller
 		$this->template->content->errors = $errors;
 		$this->template->content->form_error = $form_error;
 		$this->template->content->form_saved = $form_saved;
-		$this->template->content->yesno_array = array('1'=>strtoupper(Kohana::lang('ui_main.yes')),'0'=>strtoupper(Kohana::lang('ui_main.no')));
+		$this->template->content->yesno_array = array('1'=>utf8::strtoupper(Kohana::lang('ui_main.yes')),'0'=>utf8::strtoupper(Kohana::lang('ui_main.no')));
 
 		// Javascript Header
 		$this->template->colorpicker_enabled = TRUE;
@@ -217,7 +223,7 @@ class Profile_Controller extends Members_Controller
 		if (array_key_exists('current_password',$post->errors()))
 			return;
 
-		$user = User_Model::get_user_by_email($post->email);
+		$user = User_Model::get_user_by_id($this->user_id);
 
 		if ( ! User_Model::check_password($user->email,$post->current_password) )
 		{
