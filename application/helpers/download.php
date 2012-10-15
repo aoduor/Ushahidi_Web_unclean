@@ -20,18 +20,18 @@ class download_Core {
 		// Column Titles
 		ob_start();
 		echo "#,INCIDENT TITLE,INCIDENT DATE";
+		$item_map = array(
+		    1 => 'LOCATION',
+		    2 => 'DESCRIPTION',
+		    3 => 'CATEGORY',
+		    4 => 'LATITUDE',
+		    5 => 'LONGITUDE',
+		    7 => 'FIRST NAME, LAST NAME, EMAIL'
+		);
+		
 		foreach($post->data_include as $item)
-		{
-			$item_map = array(
-			    1 => 'LOCATION',
-			    2 => 'DESCRIPTION',
-			    3 => 'CATEGORY',
-			    4 => 'LATITUDE',
-			    5 => 'LONGITUDE',
-			    7 => 'FIRST NAME, LAST NAME, EMAIL'
-			);
-				
-			if ($item == 6)
+		{		
+			if ( (int)$item == 6)
 			{
 				foreach($custom_forms as $field_name)
 				{
