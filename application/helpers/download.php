@@ -22,25 +22,15 @@ class download_Core {
 		echo "#,INCIDENT TITLE,INCIDENT DATE";
 		foreach($post->data_include as $item)
 		{
-			if ($item == 1) {
-				echo ",LOCATION";
-			}
-
-			if ($item == 2) {
-				echo ",DESCRIPTION";
-			}
-
-			if ($item == 3) {
-				echo ",CATEGORY";
-			}
-
-			if ($item == 4) {
-				echo ",LATITUDE";
-			}
-
-			if ($item == 5) {
-				echo ",LONGITUDE";
-			}
+			$item_map = array(
+			    1 => 'LOCATION',
+			    2 => 'DESCRIPTION',
+			    3 => 'CATEGORY',
+			    4 => 'LATITUDE',
+			    5 => 'LONGITUDE',
+			    7 => 'FIRST NAME, LAST NAME, EMAIL'
+			);
+				
 			if ($item == 6)
 			{
 				foreach($custom_forms as $field_name)
@@ -49,11 +39,10 @@ class download_Core {
 				}
 
 			}
-			if($item == 7)
+			else if ( array_key_exists($item, $item_map))
 			{
-				echo ",FIRST NAME,LAST NAME,EMAIL";
+			    echo sprintf(",%s", $item_map[$item]);
 			}
-
 		}
 
 		echo ",APPROVED,VERIFIED";
@@ -68,7 +57,7 @@ class download_Core {
 		foreach ($incidents as $incident)
 		{
 			echo '"'.$incident->id.'",';
-			echo '"'.$this->_csv_text($incident->incident_title).'",';
+			echo '"'.self::_csv_text($incident->incident_title).'",';
 			echo '"'.$incident->incident_date.'"';
 
 			foreach($post->data_include as $item)
@@ -76,11 +65,11 @@ class download_Core {
 				switch ($item)
 				{
 					case 1:
-					echo ',"'.$this->_csv_text($incident->location->location_name).'"';
+					echo ',"'.self::_csv_text($incident->location->location_name).'"';
 					break;
 
 					case 2:
-					echo ',"'.$this->_csv_text($incident->incident_description).'"';
+					echo ',"'.self::_csv_text($incident->incident_description).'"';
 					break;
 
 					case 3:
@@ -90,18 +79,18 @@ class download_Core {
 					{
 						if ($category->category->category_title)
 						{
-							echo $this->_csv_text($category->category->category_title) . ", ";
+							echo self::_csv_text($category->category->category_title) . ", ";
 						}
 					}
 					echo '"';
 					break;
 
 					case 4:
-					echo ',"'.$this->_csv_text($incident->location->latitude).'"';
+					echo ',"'.self::_csv_text($incident->location->latitude).'"';
 					break;
 
 					case 5:
-					echo ',"'.$this->_csv_text($incident->location->longitude).'"';
+					echo ',"'.self::_csv_text($incident->location->longitude).'"';
 					break;
 
 					case 6:
@@ -111,7 +100,7 @@ class download_Core {
 					{
 						foreach($custom_fields as $custom_field)
 						{
-							echo',"'.$this->_csv_text($custom_field['field_response']).'"';
+							echo',"'.self::_csv_text($custom_field['field_response']).'"';
 						}
 					}
 					else
@@ -119,7 +108,7 @@ class download_Core {
 						$custom_field = customforms::get_custom_form_fields('','',false);
 						foreach ($custom_field as $custom)
 						{
-							echo',"'.$this->_csv_text("").'"';
+							echo',"'.self::_csv_text("").'"';
 						}
 					}
 					break;
@@ -128,12 +117,12 @@ class download_Core {
 					$incident_person = $incident->incident_person;
 					if($incident_person->loaded)
 					{
-						echo',"'.$this->_csv_text($incident_person->person_first).'"'.',"'.$this->_csv_text($incident_person->person_last).'"'.
-							',"'.$this->_csv_text($incident_person->person_email).'"';
+						echo',"'.self::_csv_text($incident_person->person_first).'"'.',"'.self::_csv_text($incident_person->person_last).'"'.
+							',"'.self::_csv_text($incident_person->person_email).'"';
 					}
 					else
 					{
-						echo',"'.$this->_csv_text("").'"'.',"'.$this->_csv_text("").'"'.',"'.$this->_csv_text("").'"';
+						echo',"'.self::_csv_text("").'"'.',"'.self::_csv_text("").'"'.',"'.self::_csv_text("").'"';
 					}
 					break;
 				}
@@ -200,130 +189,130 @@ class download_Core {
 			switch($item)
 			{
 				case 3:
-			/* Start Categories element */
-			$writer->startElement('categories');
+				/* Start Categories element */
+				$writer->startElement('categories');
 				if(count($categories) > 0)
 				{
-				foreach ($categories as $category)
+					foreach ($categories as $category)
 					{
-				$writer->startElement('category');
+						$writer->startElement('category');
 				
-					/* Add Category attributes */
-					// ID
-					$writer->startAttribute('id');
-						$writer->text($category->id);
+						/* Add Category attributes */
+						// ID
+						$writer->startAttribute('id');
+							$writer->text($category->id);
 
-					// Color
-					$writer->startAttribute('color');
-						$writer->text($category->category_color);
+						// Color
+						$writer->startAttribute('color');
+							$writer->text($category->category_color);
 
-					// Visible or hidden?
-					$writer->startAttribute('visible');
-						$writer->text($category->category_visible);	
+						// Visible or hidden?
+						$writer->startAttribute('visible');
+							$writer->text($category->category_visible);	
 
-					// Category position
-					$writer->startAttribute('position');
-						$writer->text($category->category_position);
+						// Category position
+						$writer->startAttribute('position');
+							$writer->text($category->category_position);
 
-					/* Add Category elements */
-					// Category Title
-					$writer->startElement('title');
-						$writer->text($category->category_title);
-					$writer->endElement();
-
-					// Category Description
-					$writer->startElement('description');
-						$writer->text($category->category_description);
-					$writer->endElement();
-
-					// Category's parent
-					$writer->startElement('parent');
-						$writer->text($category->parent_id);
-					$writer->endElement();
-
-
-							// Category Translation
-							$translations = ORM::factory('category_lang')->where('category_id', $category->id)->find_all();
-				
-							// If translations exist
-							if (count($translations) > 0)
-							{
-						$writer->startElement('translations');
-								foreach ($translations as $translation)
-								{
-							$writer->startElement('translation');
-				
-								// Translation localization?
-								$writer->startAttribute('locale');
-									$writer->text($translation->locale);
-								$writer->endAttribute();
-
-								// Translation for this Category Title
-								$writer->startElement('title');
-									$writer->text($translation->category_title);
-								$writer->endElement();
-						
-								// Translation for this Category description
-								$writer->startElement('description');
-									$writer->text($translation->category_description);
-								$writer->endElement();
-							$writer->endElement();
-								}
+						/* Add Category elements */
+						// Category Title
+						$writer->startElement('title');
+							$writer->text($category->category_title);
 						$writer->endElement();
-							}	
-				$writer->endElement();
+
+						// Category Description
+						$writer->startElement('description');
+							$writer->text($category->category_description);
+						$writer->endElement();
+
+						// Category's parent
+						$writer->startElement('parent');
+							$writer->text($category->parent_id);
+						$writer->endElement();
+
+
+						// Category Translation
+						$translations = ORM::factory('category_lang')->where('category_id', $category->id)->find_all();
+				
+						// If translations exist
+						if (count($translations) > 0)
+						{
+							$writer->startElement('translations');
+							foreach ($translations as $translation)
+							{
+								$writer->startElement('translation');
+			
+								// Translation localization?
+									$writer->startAttribute('locale');
+										$writer->text($translation->locale);
+									$writer->endAttribute();
+
+									// Translation for this Category Title
+									$writer->startElement('title');
+										$writer->text($translation->category_title);
+									$writer->endElement();
+					
+									// Translation for this Category description
+									$writer->startElement('description');
+										$writer->text($translation->category_description);
+									$writer->endElement();
+								$writer->endElement();
+							}
+							$writer->endElement();
+						}	
+						$writer->endElement();
 					}	
 				}
 		
 				// If there are no categories
 				else
 				{
-				$writer->text("There are no categories on this deployment");
+					$writer->text("There are no categories on this deployment");
 				}
 		
-			/* Close Categories Element */
-			$writer->endElement();
+				/* Close Categories Element */
+				$writer->endElement();
 				break;
 				
 				case 6:
-			/* Start Customforms Element */
-			$writer->startElement('customforms');
+				/* Start Customforms Element */
+				$writer->startElement('customforms');
 			
-			// If we have custom forms
+				// If we have custom forms
 				if (count($custom_forms) > 0)
 				{
 					$forms = ORM::factory('form')->find_all();
 					foreach ($forms as $form)
 					{	
-				// Custom Form element
-				$writer->startElement('form');
+						// Custom Form element
+						$writer->startElement('form');
 
-					/* Custom Form attributes */
-					// Form ID
-					$writer->startAttribute('id');
-						$writer->text($form->id);
+						/* Custom Form attributes */
+						// Form ID
+						$writer->startAttribute('id');
+							$writer->text($form->id);
 
-					// Form Active?
-					$writer->startAttribute('active');
-						$writer->text($form->form_active);
+						// Form Active?
+						$writer->startAttribute('active');
+							$writer->text($form->form_active);
 
-					/* Custom form elements */	
-					// Form Title
-					$writer->startElement('title');
-						$writer->text($form->form_title);
-					$writer->endElement();
+						/* Custom form elements */	
+						// Form Title
+						$writer->startElement('title');
+							$writer->text($form->form_title);
+						$writer->endElement();
 
-					// Form Description
-					$writer->startElement('description');
-						$writer->text($form->form_description);
-					$writer->endElement();
+						// Form Description
+						$writer->startElement('description');
+							$writer->text($form->form_description);
+						$writer->endElement();
 					
-							// Get custom fields associated with this form
-							$customfields = customforms::get_custom_form_fields('',$form->id,false);
-							foreach ($customfields as $field)
-							{
-						// Custom Form Fields
-						$writer->startElement('field');
+						// Get custom fields associated with this form
+						$customfields = customforms::get_custom_form_fields('',$form->id,false);
+						foreach ($customfields as $field)
+						{
+							// Custom Form Fields
+							$writer->startElement('field');
 
 							/* Custom Form Field Attributes */
 							// Field_id
@@ -338,23 +327,23 @@ class download_Core {
 							$writer->startAttribute('required');
 								$writer->text($field['field_required']);
 								
-									/* Get custom form field options */
-									$options = ORM::factory('form_field_option')->where('form_field_id',$field['field_id'])->find_all();
-									foreach ($options as $option)
-									{
-										if ($option->option_name == 'field_datatype')
-										{
+							/* Get custom form field options */
+							$options = ORM::factory('form_field_option')->where('form_field_id',$field['field_id'])->find_all();
+							foreach ($options as $option)
+							{
+								if ($option->option_name == 'field_datatype')
+								{
 									// Data type i.e Free, Numeric, Email, Phone?
 									$writer->startAttribute('datatype');
 										$writer->text($option->option_value);
-										}
-										if ($option->option_name == 'field_hidden')
-										{
+								}
+								if ($option->option_name == 'field_hidden')
+								{
 									// Hidden Field?
 									$writer->startAttribute('hidden');
 										$writer->text($option->option_value);
-										}
-									}
+								}
+							}
 
 							// Visible by i.e anyone, member, admin, superadmin?
 							$writer->startAttribute('visible-by');
@@ -375,77 +364,78 @@ class download_Core {
 								$writer->text($field['field_default']);
 							$writer->endElement();
 
-						// Close Custom form field element	
-						$writer->endElement();
-							} 
+							// Close Custom form field element	
+							$writer->endElement();
+						} 
 				
-				// Close Custom Form Element
-				$writer->endElement();	
+						// Close Custom Form Element
+						$writer->endElement();	
 					}	
 				}
 		
 				// We have no Custom forms
 				else
 				{
-				$writer->text("There are no custom forms on this deployment");
+					$writer->text("There are no custom forms on this deployment");
 				}
 		
-			/* End Custom Forms Element */
-			$writer->endElement();
+				/* End Custom Forms Element */
+				$writer->endElement();
 				break;
 			}
 		}
 				
-			/* Start Reports Element*/
-			$writer->startElement('reports');
+		/* Start Reports Element*/
+		$writer->startElement('reports');
 			
-			// If we have reports on this deployment
-			if (count($incidents) > 0)
+		// If we have reports on this deployment
+		if (count($incidents) > 0)
+		{
+			foreach ($incidents as $incident)
 			{
-				foreach ($incidents as $incident)
-				{
-					// Start Individual report
-					$writer->startElement('report');
+				// Start Individual report
+				$writer->startElement('report');
 				
-						/* Add report attributes */
-						$writer->startAttribute('id');
-							$writer->text($incident->id);
-						$writer->startAttribute('approved');
-							$writer->text($incident->incident_active);
-						$writer->startAttribute('verified');
-							$writer->text($incident->incident_verified);
-						$writer->startAttribute('mode');
-							$writer->text($incident->incident_mode);
-						$writer->startAttribute('form_id');
-							$writer->text($incident->form_id);
+				/* Add report attributes */
+				$writer->startAttribute('id');
+					$writer->text($incident->id);
+				$writer->startAttribute('approved');
+					$writer->text($incident->incident_active);
+				$writer->startAttribute('verified');
+					$writer->text($incident->incident_verified);
+				$writer->startAttribute('mode');
+					$writer->text($incident->incident_mode);
+				$writer->startAttribute('form_id');
+					$writer->text($incident->form_id);
 
-						/* Add Report Elements	*/	
-						// Report Title
-						$writer->startElement('title');
-							$writer->text($incident->incident_title);
-						$writer->endElement();
+				/* Add Report Elements	*/	
+				// Report Title
+				$writer->startElement('title');
+					$writer->text($incident->incident_title);
+				$writer->endElement();
 
-						// Report Date
-						$writer->startElement('date');
-							$writer->text($incident->incident_date);
-						$writer->endElement();
+				// Report Date
+				$writer->startElement('date');
+					$writer->text($incident->incident_date);
+				$writer->endElement();
 
-						// Report Add Date
-						$writer->startElement('dateadd');
-							$writer->text($incident->incident_dateadd);
-						$writer->endElement();
-						
-						
-						// Report Description
-						$writer->startElement('description');
-							$writer->text($incident->incident_description);
-						$writer->endElement();
+				// Report Add Date
+				$writer->startElement('dateadd');
+					$writer->text($incident->incident_dateadd);
+				$writer->endElement();
+				
+				
+				// Report Description
+				$writer->startElement('description');
+					$writer->text($incident->incident_description);
+				$writer->endElement();
 					
-					foreach($post->data_include as $item)
+				foreach($post->data_include as $item)
+				{
+					switch($item)
 					{
-						switch($item)
-						{
-							case 1:
+						case 1:
+						
 						// Report Location
 						$writer->startElement('location');
 							$writer->startElement('name');
@@ -458,19 +448,19 @@ class download_Core {
 								$writer->text($incident->location->latitude);
 							$writer->endElement();
 						$writer->endElement();
-							break;
+						break;
 
 						// Report Media
 						$reportmedia = $incident->media;
 					
-							if (count($reportmedia) > 0)
-							{
+						if (count($reportmedia) > 0)
+						{
 							$writer->startElement('media');
-								foreach ($reportmedia as $media)
+							foreach ($reportmedia as $media)
+							{
+								// Videos and news links only
+								if ($media->media_type == 2 OR $media->media_type == 4)
 								{
-									// Videos and news links only
-									if ($media->media_type == 2 OR $media->media_type == 4)
-									{
 									$writer->startElement('item');
 										$writer->startAttribute('type');
 											$writer->text($media->media_type);
@@ -481,16 +471,17 @@ class download_Core {
 										$writer->endAttribute();
 										$writer->text($media->media_link);
 									$writer->endElement();
-									}
 								}
-							$writer->endElement();
 							}
+							$writer->endElement();
+						}
 
-							case 7:
-							// Report Personal information
-							$incident_person = $incident->incident_person;
-							if ($incident_person->loaded)
-							{
+						case 7:
+						
+						// Report Personal information
+						$incident_person = $incident->incident_person;
+						if ($incident_person->loaded)
+						{
 							$writer->startElement('personal-info');
 								$writer->startElement('firstname');
 									$writer->text($incident_person->person_first);
@@ -502,55 +493,59 @@ class download_Core {
 									$writer->text($incident_person->person_email);
 								$writer->endElement();
 							$writer->endElement();
-							}
-							break;
+						}
+						break;
 
-							case 3:
-							// Report Category
+						case 3:
+						
+						// Report Category
 						$writer->startElement('categories');
-							foreach($incident->incident_category as $category)
-							{
+						foreach($incident->incident_category as $category)
+						{
 							$writer->startElement('category');
 								$writer->text($category->category->category_title);
 							$writer->endElement();
-							}
+						}
 						$writer->endElement();
-							break;
+						break;
 
-							case 6:
-							// Report Fields
-							$customresponses = customforms::get_custom_form_fields($incident->id,'',false);
-							if ( ! empty($customresponses))
-							{
+						case 6:
+						
+						// Report Fields
+						$customresponses = customforms::get_custom_form_fields($incident->id,'',false);
+						if ( ! empty($customresponses))
+						{
 							$writer->startElement('customfields');
-								foreach($customresponses as $customresponse)
+							foreach($customresponses as $customresponse)
+							{
+								// If we don't have an empty form response
+								if ($customresponse['field_response'] != '')
 								{
-									// If we don't have an empty form response
-									if ($customresponse['field_response'] != '')
-									{
 									$writer->startElement('field');
 										$writer->startAttribute('name');
 											$writer->text($customresponse['field_name']);
 										$writer->endAttribute();
 										$writer->text($customresponse['field_response']);
 									$writer->endElement();
-									}
 								}
-							$writer->endElement();
 							}
-							break;
+							$writer->endElement();
 						}
+						break;
 					}
-					// Close individual report	
-					$writer->endElement();
 				}
+				
+				// Close individual report	
+				$writer->endElement();
 			}
-			else
-			{
-					$writer->text("There are no reports on this deployment");
-			}
-			/* Close reports Element */	
-			$writer->endElement();
+		}
+		else
+		{
+			$writer->text("There are no reports on this deployment");
+		}
+		
+		/* Close reports Element */	
+		$writer->endElement();
 
 		/* Close import tag */
 		$writer->endElement();
@@ -561,6 +556,12 @@ class download_Core {
 		// Print
 		echo $writer->outputMemory(TRUE);
 		exit;
+	}
+	
+	private function _csv_text($text)
+	{
+		$text = stripslashes(htmlspecialchars($text));
+		return $text;
 	}
 }
 ?>

@@ -1327,12 +1327,6 @@ class Reports_Controller extends Admin_Controller {
 		return (!empty($where_string)) ? $where_string :  "1=1";
 	}
 
-	private function _csv_text($text)
-	{
-		$text = stripslashes(htmlspecialchars($text));
-		return $text;
-	}
-
 	/**
 	 * Adds extra filter parameters to the reports::fetch_incidents()
 	 * method. This way we can add 'all_reports=>true and other filters
