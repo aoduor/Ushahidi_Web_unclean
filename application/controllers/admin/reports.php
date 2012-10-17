@@ -1049,20 +1049,20 @@ class Reports_Controller extends Admin_Controller {
 			$errors = array();
 			$notices = array();
 
-			if (!$_FILES['csvfile']['error'])
+			if (!$_FILES['uploadfile']['error'])
 			{
-				if (file_exists($_FILES['csvfile']['tmp_name']))
+				if (file_exists($_FILES['uploadfile']['tmp_name']))
 				{
 					// Get contents of CSV file
-					$data = file_get_contents($_FILES['csvfile']['tmp_name']);
+					$data = file_get_contents($_FILES['uploadfile']['tmp_name']);
 					
 					// Replace carriage return character
 					$replacedata = preg_replace("/\r/","\n",$data);
 					
 					// Replace file content
-					file_put_contents($_FILES['csvfile']['tmp_name'], $replacedata);
+					file_put_contents($_FILES['uploadfile']['tmp_name'], $replacedata);
 					
-					if($filehandle = fopen($_FILES['csvfile']['tmp_name'], 'r'))
+					if($filehandle = fopen($_FILES['uploadfile']['tmp_name'], 'r'))
 					{
 						$importer = new ReportsImporter;
 
@@ -1095,7 +1095,7 @@ class Reports_Controller extends Admin_Controller {
 			// Upload errors?
 			else
 			{
-				$errors[] = $_FILES['csvfile']['error'];
+				$errors[] = $_FILES['uploadfile']['error'];
 			}
 
 			if (count($errors))

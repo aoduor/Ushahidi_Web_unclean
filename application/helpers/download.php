@@ -499,7 +499,7 @@ class download_Core {
 						case 3:
 						
 						// Report Category
-						$writer->startElement('categories');
+						$writer->startElement('reportcategories');
 						foreach($incident->incident_category as $category)
 						{
 							$writer->startElement('category');
