@@ -54,12 +54,16 @@ class Geocoder_Core {
 						// Successful geocode
 						$geocode_pending = false;
 						$coordinates = $xml->Response->Placemark->Point->coordinates;
+						$country_name = $xml->Response->Placemark->AddressDetails->Country->CountryName;
+						$country = Country_Model::get_country_by_name($country_name);
+						$country_id = ( ! empty($country) AND $country->loaded)? $country->id : 0;
 						$coordinatesSplit = explode(",", $coordinates);
+						
 						// Format: Longitude, Latitude, Altitude
 						$lng = $coordinatesSplit[0];
 						$lat = $coordinatesSplit[1];
 
-						return array($lng, $lat);
+						return array($lng, $lat, $country_id);
 
 					}
 					else if (strcmp($status, "620") == 0)

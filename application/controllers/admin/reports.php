@@ -1032,6 +1032,13 @@ class Reports_Controller extends Admin_Controller {
 
 	public function upload()
 	{
+		$form = array(
+			'uploadfile' => '',
+		);
+		
+		$errors = array();
+		$notices = array();
+		
 		// If user doesn't have access, redirect to dashboard
 		if ( ! $this->auth->has_permission("reports_upload"))
 		{
@@ -1046,59 +1053,96 @@ class Reports_Controller extends Admin_Controller {
 
 		if ($_SERVER['REQUEST_METHOD']=='POST')
 		{
-			$errors = array();
-			$notices = array();
+			$post = array_merge($_POST, $_FILES);
 
-			if (!$_FILES['uploadfile']['error'])
+			// Set up validation
+			$post = Validation::factory($post)
+					->add_rules('uploadfile', 'upload::valid', 'upload::required', 'upload::type[xml,csv]', 'upload::size[3M]');
+					
+			if($post->validate(TRUE))
 			{
+				// Establish if file to be uploaded is .xml or .csv format
+				$fileinfo = pathinfo($post['uploadfile']['name']);
+				$extension = $fileinfo['extension'];
+				
 				if (file_exists($_FILES['uploadfile']['tmp_name']))
 				{
-					// Get contents of CSV file
-					$data = file_get_contents($_FILES['uploadfile']['tmp_name']);
-					
-					// Replace carriage return character
-					$replacedata = preg_replace("/\r/","\n",$data);
-					
-					// Replace file content
-					file_put_contents($_FILES['uploadfile']['tmp_name'], $replacedata);
-					
-					if($filehandle = fopen($_FILES['uploadfile']['tmp_name'], 'r'))
+					/* Sorting out compatibility issues for CSV files */
+					if ($extension == 'csv')
 					{
-						$importer = new ReportsImporter;
+						// Get contents of CSV file
+						$data = file_get_contents($_FILES['uploadfile']['tmp_name']);
 
-						if ($importer->import($filehandle))
+						// Replace carriage return character
+						$replacedata = preg_replace("/\r/","\n",$data);
+
+						// Replace file content
+						file_put_contents($_FILES['uploadfile']['tmp_name'], $replacedata);
+
+						if($filehandle = fopen($_FILES['uploadfile']['tmp_name'], 'r'))
 						{
-							$this->template->content = new View('admin/reports/upload_success');
-							$this->template->content->title = 'Upload Reports';
-							$this->template->content->rowcount = $importer->totalrows;
-							$this->template->content->imported = $importer->importedrows;
-							$this->template->content->notices = $importer->notices;
+							$csv_importer = new CSVImporter;
+
+							if ($csv_importer->import_csv($filehandle))
+							{
+								$this->template->content = new View('admin/reports/upload_success');
+								$this->template->content->title = 'Upload Reports';
+								$this->template->content->rowcount = $csv_importer->totalrows;
+								$this->template->content->imported = $csv_importer->importedrows;
+								$this->template->content->notices = $csv_importer->notices;
+							}
+							else
+							{
+								$errors = $csv_importer->errors;	
+							}
 						}
 						else
 						{
-							$errors = $importer->errors;
+							$errors[] = Kohana::lang('ui_admin.file_open_error');
 						}
 					}
+					
+					else if ($extension == 'xml')
+					{
+						$xml_importer = new XMLImporter;
+						if($xml_importer->import_xml($_FILES['uploadfile']['tmp_name']))
+						{
+							$this->template->content = new View('admin/reports/upload_success');
+							$this->template->content->title = 'Upload Reports';
+							$this->template->content->rowcount = $xml_importer->totalreports;
+							$this->template->content->imported = $xml_importer->importedreports;
+							$this->template->content->notices = $xml_importer->notices;
+						}
+						
+						else
+						{
+							$errors = $xml_importer->errors;
+						}
+					}
+					
 					else
 					{
-						$errors[] = Kohana::lang('ui_admin.file_open_error');
+						$errors[] = Kohana::lang('reports.uploadfile.type');
 					}
 				}
 
-				// File exists?
+				// File doesn't exist
 				else
 				{
 					$errors[] = Kohana::lang('ui_admin.file_not_found_upload');
 				}
 			}
 
-			// Upload errors?
 			else
 			{
-				$errors[] = $_FILES['uploadfile']['error'];
+				foreach($post->errors('reports') as $error)
+				{
+					$errors[] = $error;
+				}
+				
 			}
-
-			if (count($errors))
+			
+			if ( count($errors))
 			{
 				$this->template->content = new View('admin/reports/upload');
 				$this->template->content->title = Kohana::lang('ui_admin.upload_reports');

@@ -198,10 +198,6 @@ class download_Core {
 						$writer->startElement('category');
 				
 						/* Add Category attributes */
-						// ID
-						$writer->startAttribute('id');
-							$writer->text($category->id);
-
 						// Color
 						$writer->startAttribute('color');
 							$writer->text($category->category_color);
@@ -209,10 +205,10 @@ class download_Core {
 						// Visible or hidden?
 						$writer->startAttribute('visible');
 							$writer->text($category->category_visible);	
-
-						// Category position
-						$writer->startAttribute('position');
-							$writer->text($category->category_position);
+							
+						// Category Trusted?
+						$writer->startAttribute('trusted');
+							$writer->text($category->category_trusted);
 
 						/* Add Category elements */
 						// Category Title
@@ -226,10 +222,13 @@ class download_Core {
 						$writer->endElement();
 
 						// Category's parent
-						$writer->startElement('parent');
-							$writer->text($category->parent_id);
-						$writer->endElement();
-
+						$parent = ORM::factory('category', $category->parent_id);
+						if($parent->loaded)
+						{
+							$writer->startElement('parent');
+								$writer->text($parent->category_title);
+							$writer->endElement();
+						}
 
 						// Category Translation
 						$translations = ORM::factory('category_lang')->where('category_id', $category->id)->find_all();
@@ -248,12 +247,12 @@ class download_Core {
 									$writer->endAttribute();
 
 									// Translation for this Category Title
-									$writer->startElement('title');
+									$writer->startElement('transtitle');
 										$writer->text($translation->category_title);
 									$writer->endElement();
 					
 									// Translation for this Category description
-									$writer->startElement('description');
+									$writer->startElement('transdescription');
 										$writer->text($translation->category_description);
 									$writer->endElement();
 								$writer->endElement();
@@ -267,7 +266,7 @@ class download_Core {
 				// If there are no categories
 				else
 				{
-					$writer->text("There are no categories on this deployment");
+					$writer->text('There are no categories on this deployment.');
 				}
 		
 				/* Close Categories Element */
@@ -288,10 +287,6 @@ class download_Core {
 						$writer->startElement('form');
 
 						/* Custom Form attributes */
-						// Form ID
-						$writer->startAttribute('id');
-							$writer->text($form->id);
-
 						// Form Active?
 						$writer->startAttribute('active');
 							$writer->text($form->form_active);
@@ -314,11 +309,7 @@ class download_Core {
 							// Custom Form Fields
 							$writer->startElement('field');
 
-							/* Custom Form Field Attributes */
-							// Field_id
-							$writer->startAttribute('id');
-								$writer->text($field['field_id']);
-								
+							/* Custom Form Field Attributes */								
 							// Field Type i.e radio button, checkbox, date field, textfield, textarea, dropdown?
 							$writer->startAttribute('type');
 								$writer->text($field['field_type']);
@@ -360,9 +351,12 @@ class download_Core {
 							$writer->endElement();
 
 							// Default Value
-							$writer->startElement('default');
-								$writer->text($field['field_default']);
-							$writer->endElement();
+							if ($field['field_default'] != '')
+							{
+								$writer->startElement('default');
+									$writer->text($field['field_default']);
+								$writer->endElement();
+							}
 
 							// Close Custom form field element	
 							$writer->endElement();
@@ -376,7 +370,7 @@ class download_Core {
 				// We have no Custom forms
 				else
 				{
-					$writer->text("There are no custom forms on this deployment");
+					$writer->text('There are no custom forms on this deployment.');
 				}
 		
 				/* End Custom Forms Element */
@@ -387,6 +381,7 @@ class download_Core {
 				
 		/* Start Reports Element*/
 		$writer->startElement('reports');
+		
 			
 		// If we have reports on this deployment
 		if (count($incidents) > 0)
@@ -405,8 +400,11 @@ class download_Core {
 					$writer->text($incident->incident_verified);
 				$writer->startAttribute('mode');
 					$writer->text($incident->incident_mode);
+				
+				// Form this incident belongs to?
+				$form = ORM::factory('form')->find($incident->form_id);
 				$writer->startAttribute('form_id');
-					$writer->text($incident->form_id);
+					$writer->text($form->form_title);
 
 				/* Add Report Elements	*/	
 				// Report Title
@@ -541,7 +539,7 @@ class download_Core {
 		}
 		else
 		{
-			$writer->text("There are no reports on this deployment");
+			$writer->text('There are no reports on this deployment.');
 		}
 		
 		/* Close reports Element */	
