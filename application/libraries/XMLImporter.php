@@ -182,64 +182,58 @@ class XMLImporter {
 		
 			// If we're importing categories
 			if( $depcategories->length > 0)
-			{
-				foreach ($depcategories as $categories)
-				{	
-					if ($categories->nodeValue != 'There are no categories on this deployment.')
+			{	
+				$categories = $depcategories->item(0);
+				if ($categories->nodeValue != 'There are no categories on this deployment.')
+				{
+					if ($this->import_categories($categories) == false)
 					{
-						if ($this->import_categories($categories) == false)
-						{
-							// Undo Data Import
-							$this->rollback();
-							return false;
-						}
-					}
-					else
-					{
-						$this->notices[] = 'There are no categories to import';
+						// Undo Data Import
+						$this->rollback();
+						return false;
 					}
 				}
+				else
+				{
+					$this->notices[] = 'There are no categories to import';
+				}	
 			}
 		
 			// If we're importing custom forms
 			if ($depcustomforms->length > 0)
 			{
-				foreach ($depcustomforms as $customforms)
+				$customforms = $depcustomforms->item(0);
+				if ($customforms->nodeValue != 'There are no custom forms on this deployment.')
 				{
-					if ($customforms->nodeValue != 'There are no custom forms on this deployment.')
+					if ($this->import_customforms($customforms) == false)
 					{
-						if ($this->import_customforms($customforms) == false)
-						{
-							// Undo Data Import
-							$this->rollback();
-							return FALSE;
-						}
-					}
-					else
-					{
-						$this->notices[] = 'There are no custom forms to import.';
+						// Undo Data Import
+						$this->rollback();
+						return FALSE;
 					}
 				}
+				else
+				{
+					$this->notices[] = 'There are no custom forms to import.';
+				}	
 			}
 		
 			// If we are importing Reports 
 			if ($depreports->length > 0)
 			{
-				foreach ($depreports as $reports)
+				$reports = $depreports->item(0);
+				if ($reports->nodeValue != 'There are no reports on this deployment.')
 				{
-					if ($reports->nodeValue != 'There are no reports on this deployment.')
+					if ($this->import_reports($reports) == false)
 					{
-						if ($this->import_reports($reports) == false)
-						{
-							// Undo Data Import
-							$this->rollback();
-							return FALSE;						
-						}
+						// Undo Data Import
+						$this->rollback();
+						return FALSE;						
 					}
-					else
-					{
-						$this->notices[] = 'There are reports to import.';
-					}
+				}
+				else
+				{
+					$this->notices[] = 'There are reports to import.';
 				}
 			}	
 		}
@@ -268,19 +262,15 @@ class XMLImporter {
 			$this->totalcategories++;
 			
 			// Category Title
-			foreach ($category->getElementsByTagName('title') as $cattitle)
-			{
-				$cat_title = trim($cattitle->nodeValue);
-			}
+			$cat_title = $this->get_node_text($category, 'title') ? $this->get_node_text($category, 'title') : '';
 			
 			// Category Description
-			foreach ($category->getElementsByTagName('description') as $catdescription)
-			{
-				$cat_description = trim($catdescription->nodeValue);
-			}	
+			/* TO DO: Sanity Check */
+			$cat_description = $this->get_node_text($category, 'description') ? $this->get_node_text($category, 'description') : '';
+				
 			
 			// If either the category title or description is not provided
-			if (( ! isset($cat_title) OR $cat_title == '') OR ( ! isset($cat_description) OR $cat_description == ''))
+			if ($cat_title == '' OR $cat_description == '')
 			{
 				$this->errors[] = 'The category title and category description fields are required. XML Import failed for category #'.$this->totalcategories;
 			}
@@ -300,12 +290,10 @@ class XMLImporter {
 					$parent = $category->getElementsByTagName('parent');
 					if ($parent->length > 0)
 					{
-						foreach ($parent as $catparent)
-						{
-							$cat_parent = $catparent->nodeValue;
-							$parent_id = isset($this->existing_categories[utf8::strtoupper($cat_parent)]) ? 
-							$this->existing_categories[utf8::strtoupper($cat_parent)] : NULL; 
-						}
+						$cat_parent = $this->get_node_text($category, 'parent') ? $this->get_node_text($category, 'parent') : '';
+						$parent_id = isset($this->existing_categories[utf8::strtoupper($cat_parent)])
+						 			? $this->existing_categories[utf8::strtoupper($cat_parent)] 
+									: 0; 	
 					}
 			
 					// Save the Category
@@ -327,83 +315,73 @@ class XMLImporter {
 				}
 
 				/* Category Translations */
-				$cat_translations = $category->getElementsByTagName('translations');
+				$c_translations = $category->getElementsByTagName('translations');
 				
 				// Get the current category's id
 				$cat_id = $this->existing_categories[utf8::strtoupper($cat_title)];
 		
 				// If category translations exist
-				if ($cat_translations->length > 0)
+				if ($c_translations->length > 0)
 				{
-					foreach ($cat_translations as $trans)
+					$cat_translations = $c_translations->item(0); 	
+					foreach ($cat_translations->getElementsByTagName('translation') as $translation)
 					{
-						foreach ($trans->getElementsByTagName('translation') as $translation)
+						// Get Localization
+						$locale = trim($translation->getAttribute('locale'));
+						
+						// Does the locale attribute exist in the document? And is it empty?
+						if (isset($locale) AND $locale != '')
 						{
-							// Get Localization
-							$locale = trim($translation->getAttribute('locale'));
 							
-							// Does the locale attribute exist in the document? And is it empty?
-							if (isset($locale) AND $locale != '')
+							// Check if category translation exists for this localization
+							$existing_translations = ORM::factory('category_lang')
+													->where('category_id',$cat_id)
+													->where('locale', $locale)
+													->find_all();
+
+							// If Category translation does not exist, save it
+							if (count($existing_translations) == 0)
 							{
+								// Get category title for this localization
+								$trans_title = $this->get_node_text($translation, 'transtitle') ? $this->get_node_text($translation, 'transtitle') : '';
 								
-								// Check if category translation exists for this localization
-								$existing_translations = ORM::factory('category_lang')
-														->where('category_id',$cat_id)
-														->where('locale', $locale)
-														->find_all();
-
-								// If Category translation does not exist, save it
-								if (count($existing_translations) == 0)
+								// Category Description
+								$trans_description = $this->get_node_text($translation, 'transdescription') 
+													? $this->get_node_text($translation, 'transdescription')
+													: '';
+								
+								// If we're missing the translated category title
+								if ( $trans_title == '')
 								{
-									// Get category title for this localization
-									foreach ($translation->getElementsByTagName('transtitle') as $title)
-									{
-										$trans_title = trim($title->nodeValue);
-									}
+									$this->notices[] = 'Category translation import failed. Missing category title: Localization '
+														.utf8::strtoupper($locale)
+														." for category #".$this->totalcategories;
+								}
+								else
+								{
+									// Save Category Translations
+									$cl = new Category_Lang_Model();
+									$cl->locale = $locale;
+									$cl->category_id = $cat_id;
+									$cl->category_title = $trans_title;
+									$cl->category_description = $trans_description !='' ? $trans_description : NULL;
+									$cl->save();
 									
-									// Category Description
-									foreach($translation->getElementsByTagName('transdescription') as $description)
-									{
-										$trans_description = trim($description->nodeValue);
-									}
-									
-									// If we're missing the translated category title
-									if ( ! isset($trans_title) OR $trans_title == '')
-									{
-										$this->notices[] = 'Category translation import failed. Missing category title: Localization '
-															.utf8::strtoupper($locale)
-															." for category #".$this->totalcategories;
-									}
-									else
-									{
-										// Save Category Translations
-										$cl = new Category_Lang_Model();
-										$cl->locale = $locale;
-										$cl->category_id = $cat_id;
-										$cl->category_title = $trans_title;
-
-										$cl->category_description = (isset($trans_description) AND $trans_description !='')
-											? $trans_description
-											: NULL;
-
-										$cl->save();
-
-										// Add this to array of category translations added during import
-										$this->category_translations_added[] = $cl->id;
-										$this->notices[] = 'Category translation added: Localization "'
-															.utf8::strtoupper($locale)
-										    				. '" for category "'.$cat_title.'"';
-									}
-								}	
-							}
-							
-							// Locale attribute does not exist
-							else
-							{
-								$this->notices[] = 'Could not import empty category translation for localization for category #'.$this->totalcategories;
-							}
+									// Add this to array of category translations added during import
+									$this->category_translations_added[] = $cl->id;
+									$this->notices[] = 'Category translation added: Localization "'
+														.utf8::strtoupper($locale)
+									    				. '" for category "'.$cat_title.'"';
+								}
+							}	
 						}
-					}
+						
+						// Locale attribute does not exist
+						else
+						{
+							$this->notices[] = 'Could not import empty category translation for localization for category #'.$this->totalcategories;
+						}
+					}	
 				}
 			}
 		}
@@ -428,13 +406,10 @@ class XMLImporter {
 			$totalfields = 0;
 			
 			// Form Title
-			foreach ($form->getElementsByTagName('title') as $form_title)
-			{
-				$title = trim($form_title->nodeValue);
-			}
+			$title = $this->get_node_text($form, 'title') ? $this->get_node_text($form, 'title') : '';
 			
 			// If the form title is missing
-			if ( ! isset($title) OR $title == '')
+			if ( $title == '')
 			{
 				$this->errors[] = "Form title must be provided for form #".$this->totalforms;
 			}
@@ -452,15 +427,12 @@ class XMLImporter {
 					$active = (isset($form_active) AND in_array($form_active, $this->allowable))? $form_active : NULL;
 					
 					// Form Description
-					foreach ($form->getElementsByTagName('description') as $form_description)
-					{
-						$description = trim($form_description->nodeValue);
-					}
-
+					$description = $this->get_node_text($form, 'description') ? $this->get_node_text($form, 'description') : '';
+					
 					// Save it
 					$new_form = new Form_Model();
 					$new_form->form_title = $title;
-					$new_form->form_description = (isset($description) AND $description != '') ? $description : NULL;
+					$new_form->form_description = $description != '' ? $description : NULL;
 					$new_form->form_active = isset($active) ? $active: 1;
 					$new_form->save();
 
@@ -482,11 +454,8 @@ class XMLImporter {
 						$totalfields++;
 						
 						// Field Name
-						foreach ($field->getElementsByTagName('name') as $field_name)
-						{
-							$name = trim($field_name->nodeValue);
-						}
-						
+						$name = $this->get_node_text($field, 'name') ? $this->get_node_text($field, 'name') : '';
+					
 						// Field Type
 						$field_type = $field->getAttribute('type');
 						$allowable_types = array(1,2,3,4,5,6,7);
@@ -495,10 +464,10 @@ class XMLImporter {
 						$type = (isset($field_type) AND in_array($field_type, $allowable_types) )? $field_type : NULL;
 						
 						// If field name is missing or field type is null 
-						if (( ! isset($name) OR $name == '') OR ! isset($type))
+						if ($name == '' OR ! isset($type))
 						{
 							$this->notices[] = 'Custom field name missing/field type not allowed. Import failed for field #'
-							.$totalfields.' on form #'.$this->totalforms;
+							.$totalfields.' on form "'.$title.'"';
 						}
 						
 						// Field name is provided, proceed
@@ -522,12 +491,9 @@ class XMLImporter {
 								// Field Default
 								$fielddefault = $field->getElementsByTagName('default');
 								if ($fielddefault->length > 0)
-								{
-									foreach ($fielddefault as $field_default)
-									{
-										$default = trim($field_default->nodeValue);
-										$default_values = $default != '' ? $default : NULL;
-									}
+								{		
+									$default = $this->get_node_text($field, 'default') ? $this->get_node_text($field, 'default') : '';
+									$default_values = $default != '' ? $default : NULL;
 								}
 								
 								// Make sure we have default values for Radio buttons, Checkboxes and drop down fields
@@ -535,11 +501,11 @@ class XMLImporter {
 								$default_required = array(5, 6, 7);
 								if ( ! isset($default_values) AND in_array($type, $default_required))
 								{
-									$this->notices[] = 'Default values are required for radio, checkbox and dropdown fields: field #'.$totalfields
-									.' on form #'.$this->totalforms;
+									$this->notices[] = 'Default values are required for radio, checkbox and dropdown fields: field "'.$name
+									.'" on form "'.$title.'"';
 								}
 								
-								// Defaults have been provided
+								// Defaults have been provided / Not required
 								else
 								{
 									// Save the form field
@@ -560,72 +526,72 @@ class XMLImporter {
 									$this->fields_added[] = $new_field->id;
 									$this->notices[] = 'New form field "'.$name.'" added to database';
 									
-								}
-							}
-
-							// Field Options exist?
-							if ($field->hasAttribute('datatype') OR $field->hasAttribute('hidden'))
-							{
-								// Get current field_id
-								$fieldid = $this->existing_fields[utf8::strtoupper($name)];
-				
-								if ($field->hasAttribute('datatype'))
-								{
-									// Does datatype option already exist for this field?
-									$existing_datatype = ORM::factory('form_field_option')
-														->where('form_field_id', $fieldid)
-														->where('option_name','field_datatype')
-														->find_all();
-									// No, none exists
-									if (count($existing_datatype) == 0)
+									// Field Options exist?
+									if ($field->hasAttribute('datatype') OR $field->hasAttribute('hidden'))
 									{
-										$datatype = trim($field->getAttribute('datatype'));
-										$allowed_types = array('email', 'phonenumber', 'numeric', 'text');
-										$field_datatype = ($datatype != '' AND in_array($datatype, $allowed_types))? $datatype : NULL;
+										// Get current field_id
+										$fieldid = $this->existing_fields[utf8::strtoupper($name)];
 
-										// If field datatype is not null, save
-										if ($field_datatype != NULL)
+										if ($field->hasAttribute('datatype'))
 										{
-											$datatype_option = new Form_Field_Option_Model();
-											$this->_save_field_option($datatype_option, $fieldid, 'field_datatype', $field_datatype);
+											// Does datatype option already exist for this field?
+											$existing_datatype = ORM::factory('form_field_option')
+																->where('form_field_id', $fieldid)
+																->where('option_name','field_datatype')
+																->find_all();
+											// No, none exists
+											if (count($existing_datatype) == 0)
+											{
+												$datatype = trim($field->getAttribute('datatype'));
+												$allowed_types = array('email', 'phonenumber', 'numeric', 'text');
+												$field_datatype = ($datatype != '' AND in_array($datatype, $allowed_types))? $datatype : NULL;
 
-											// Add to array of field options added during import
-											$this->field_options_added[] = $datatype_option->id;
-											$this->notices[] = 'Field datatype option added for field "'.$name.'"';
+												// If field datatype is not null, save
+												if ($field_datatype != NULL)
+												{
+													$datatype_option = new Form_Field_Option_Model();
+													$this->_save_field_option($datatype_option, $fieldid, 'field_datatype', $field_datatype);
+
+													// Add to array of field options added during import
+													$this->field_options_added[] = $datatype_option->id;
+													$this->notices[] = 'Field datatype option added for field "'.$name.'"';
+												}
+											}								
 										}
-									}								
-								}
 
-								if ($field->hasAttribute('hidden'))
-								{
-									// Does hidden option already exist for this field?
-									$existing_hidden = ORM::factory('form_field_option')
-														->where('form_field_id', $fieldid)
-														->where('option_name','field_hidden')
-														->find_all();
-														
-									// No, none exists
-									if (count($existing_hidden) == 0)
-									{
-										$hidden = $field->getAttribute('hidden');
-										$field_hidden = ($hidden != '' AND in_array($hidden, $this->allowable)) ? $hidden : NULL;
-
-										// If field datatype is not null, save
-										if ($field_hidden != NULL)
+										if ($field->hasAttribute('hidden'))
 										{
-											$hidden_option = new Form_Field_Option_Model();
-											$this->_save_field_option($hidden_option, $fieldid, 'field_hidden', $field_hidden);
+											// Does hidden option already exist for this field?
+											$existing_hidden = ORM::factory('form_field_option')
+																->where('form_field_id', $fieldid)
+																->where('option_name','field_hidden')
+																->find_all();
 
-											// Add to array of field options added during import
-											$this->field_options_added[] = $hidden_option->id;
-											$this->notices[] = 'Field hidden option added for field field "'.$name.'"';
+											// No, none exists
+											if (count($existing_hidden) == 0)
+											{
+												$hidden = $field->getAttribute('hidden');
+												$field_hidden = ($hidden != '' AND in_array($hidden, $this->allowable)) ? $hidden : NULL;
+
+												// If field datatype is not null, save
+												if ($field_hidden != NULL)
+												{
+													$hidden_option = new Form_Field_Option_Model();
+													$this->_save_field_option($hidden_option, $fieldid, 'field_hidden', $field_hidden);
+
+													// Add to array of field options added during import
+													$this->field_options_added[] = $hidden_option->id;
+													$this->notices[] = 'Field hidden option added for field field "'.$name.'"';
+												}
+											} 
 										}
-									} 
-														
+										// End field hidden option exists
+									}
+									// End field options exist	
 								}
-								// End field hidden option exists
+								// End defaults provided
 							}
-							// End field options exist
+							// End field does not exist
 						}
 						// End field name provided
 					}
@@ -670,75 +636,59 @@ class XMLImporter {
 				// If location information has been provided
 				if ($locations->length > 0)
 				{
-					foreach ($locations as $report_location)
+					$report_location = $locations->item(0);
+					
+					// Location Name
+					$location_name = $this->get_node_text($report_location, 'name') 
+									? $this->get_node_text($report_location, 'name') 
+									: NULL;
+					// Longitude
+					$longitude = $this->get_node_text($report_location, 'longitude')
+								? $this->get_node_text($report_location, 'longitude')
+								: 0;
+					
+					// Latitude
+					$latitude = $this->get_node_text($report_location, 'latitude')
+								? $this->get_node_text($report_location, 'latitude')
+								: 0;
+									
+					if ($location_name != NULL)
 					{
-						// Location Name
-						foreach ($report_location->getElementsByTagName('name') as $loc_name)
-						{
-							$locname = trim($loc_name->nodeValue);
-						}
-
-						// Longitude
-						foreach ($report_location->getElementsByTagName('longitude') as $lon)
-						{
-							$long = trim($lon->nodeValue);
-						}
-
-						// Latitude
-						foreach ($report_location->getElementsByTagName('latitude') as $lat)
-						{
-							$lati = trim($lat->nodeValue);
-						}
+						// For geocoding purposes
+						$location_geocoded = Geocoder::geocode_location($location_name);
 						
-						$location_name = (isset($locname) AND $locname != '') ? $locname : NULL;
-						$longitude = (isset($long) AND $long != '') ? $long : 0;
-						$latitude = (isset($lati) AND $lati != '') ? $lati : 0;
-						if ($location_name != NULL)
+						// Save the location
+						$new_location = new Location_Model();
+						$new_location->location_name = $location_name;
+						$new_location->location_date = $this->time;
+						
+						// If longitude/latitude values are not present
+						if ($latitude == 0 AND $longitude == 0)
 						{
-							// For geocoding purposes
-							$location_geocoded = Geocoder::geocode_location($location_name);
-							
-							// Save the location
-							$new_location = new Location_Model();
-							$new_location->location_name = $location_name;
-							$new_location->location_date = $this->time;
-							
-							// If longitude/latitude values are not present
-							if ($latitude == 0 AND $longitude == 0)
-							{
-								// Get geocoded lat/lon values
-								$new_location->latitude = $location_geocoded ? $location_geocoded[1] : $latitude;
-								$new_location->longitude = $location_geocoded ? $location_geocoded[0] : $longitude;
-							}
-							else
-							{
-								$new_location->latitude = $latitude;
-								$new_location->longitude = $longitude;
-							} 
-							$new_location->country_id = $location_geocoded ? $location_geocoded[2] : 0;
-							$new_location->save();
-							
-							// Add this location to array of imported locations
-							$this->locations_added[] = $new_location->id;
+							// Get geocoded lat/lon values
+							$new_location->latitude = $location_geocoded ? $location_geocoded[1] : $latitude;
+							$new_location->longitude = $location_geocoded ? $location_geocoded[0] : $longitude;
 						}
+						else
+						{
+							$new_location->latitude = $latitude;
+							$new_location->longitude = $longitude;
+						} 
+						$new_location->country_id = $location_geocoded ? $location_geocoded[2] : 0;
+						$new_location->save();
+						
+						// Add this location to array of imported locations
+						$this->locations_added[] = $new_location->id;
 					}
+					
 				}
 				
 				/* Step 2: Save Report */
 				// Report Title
-				foreach ($report->getElementsByTagName('title') as $r_title)
-				{
-					$title = trim($r_title->nodeValue);
-				}
-
-				// Report Date
-				foreach ($report->getElementsByTagName('date') as $r_date)
-				{
-					$date = trim($r_date->nodeValue);
-				}
+				$report_title = $this->get_node_text($report, 'title') ? $this->get_node_text($report, 'title') : '';
 				
-				$report_title = (isset($title) and $title != '') ? $title : '';
-				$report_date = (isset($date) and $date != '') ? $date : '';
+				// Report Date
+				$report_date = $this->get_node_text($report, 'date')  ? $this->get_node_text($report, 'date') : '';
 				
 				// Missing report title or report date?
 				if ($report_title == '' OR $report_date == '')
@@ -785,23 +735,18 @@ class XMLImporter {
 					}
 					
 					// Report Date added
-					foreach ($report->getElementsByTagName('dateadd') as $report_dateadd)
-					{
-						$dateadd = $report_dateadd->nodeValue;
-					}
-					// Report Description
-					foreach ($report->getElementsByTagName('description') as $description)
-					{
-						$report_description = trim($description->nodeValue);
-					}
+					$dateadd = $this->get_node_text($report, 'dateadd')  ? $this->get_node_text($report, 'dateadd') : '';
 					
+					// Report Description
+					$report_description = $this->get_node_text($report, 'description')  ? $this->get_node_text($report, 'description') : '';
+
 					$new_report = new Incident_Model();
 					$new_report->location_id = isset($new_location) ? $new_location->id : 0;
 					$new_report->user_id = 0;
 					$new_report->incident_title = $report_title;
 					$new_report->incident_description = $report_description;
 					$new_report->incident_date = date("Y-m-d H:i:s",strtotime($report_date));
-					$new_report->incident_dateadd = (isset($dateadd) AND strtotime($dateadd))? $dateadd : $this->time;
+					$new_report->incident_dateadd = ($dateadd != '' AND strtotime($dateadd))? $dateadd : $this->time;
 					$new_report->incident_active = $report_approved;
 					$new_report->incident_verified = $report_verified;
 					$new_report->incident_mode = $report_mode;
@@ -819,31 +764,30 @@ class XMLImporter {
 					$reportcategories = $report->getElementsByTagName('reportcategories') ;
 					if ($reportcategories->length > 0)
 					{
-						foreach ($reportcategories as $report_categories)
+						$report_categories = $reportcategories->item(0);
+						
+						foreach($report_categories->getElementsByTagName('category') as $r_category)
 						{
-							foreach($report_categories->getElementsByTagName('category') as $r_category)
+							$category = trim($r_category->nodeValue);
+							$report_category = (isset($category) AND $category != '') ? $category : '';
+							if ($report_category != '' AND isset($this->existing_categories[utf8::strtoupper($report_category)]))
 							{
-								$category = trim($r_category->nodeValue);
-								$report_category = (isset($category) AND $category != '') ? $category : '';
-								if ($report_category != '' AND isset($this->existing_categories[utf8::strtoupper($report_category)]))
-								{
-									// Save the incident category
-									$new_incident_category = new Incident_Category_Model();
-									$new_incident_category->incident_id = $new_report->id;
-									$new_incident_category->category_id = $this->existing_categories[utf8::strtoupper($report_category)];
-									$new_incident_category->save();
-									
-									// Add this to array of incident categories added
-									$this->incident_categories_added[] = $new_incident_category->id;
-								}
+								// Save the incident category
+								$new_incident_category = new Incident_Category_Model();
+								$new_incident_category->incident_id = $new_report->id;
+								$new_incident_category->category_id = $this->existing_categories[utf8::strtoupper($report_category)];
+								$new_incident_category->save();
 								
-								if ($report_category != '' AND ! isset($this->existing_categories[utf8::strtoupper($report_category)]))
-								{
-									$this->notices[] = 'The category "'.$report_category.'" listed in report #'
-														.$this->totalreports.' does not exist on this deployment';
-								}
+								// Add this to array of incident categories added
+								$this->incident_categories_added[] = $new_incident_category->id;
 							}
-						}
+							
+							if ($report_category != '' AND ! isset($this->existing_categories[utf8::strtoupper($report_category)]))
+							{
+								$this->notices[] = 'The category "'.$report_category.'" listed in report #'
+													.$this->totalreports.' does not exist on this deployment';
+							}
+						}	
 					}
 						
 					/* Step 4: Save Custom form field responses for this report */
@@ -851,145 +795,137 @@ class XMLImporter {
 					$reportfields = $report->getElementsByTagName('customfields');
 					if ($reportfields->length > 0)
 					{
-						foreach ($reportfields as $report_fields)
+						$report_fields = $reportfields->item(0);
+						$custom_fields = $report_fields->getElementsByTagName('field');
+						if ($custom_fields->length > 0)
 						{
-							$custom_fields = $report_fields->getElementsByTagName('field');
-							if ($custom_fields->length > 0)
+							foreach ($custom_fields as $field)
 							{
-								foreach ($custom_fields as $field)
+								// Field Name
+								$field_name = $field->hasAttribute('name') ? trim($field->getAttribute('name')) : '';
+								if ($field_name != '')
 								{
-									// Field Name
-									$field_name = $field->hasAttribute('name') ? trim($field->getAttribute('name')) : '';
-									if ($field_name != '')
+									// If this field exists
+									if(isset($this->existing_fields[utf8::strtoupper($field_name)]))
 									{
-										// If this field exists
-										if(isset($this->existing_fields[utf8::strtoupper($field_name)]))
+										// Make sure this field is tagged to the same form as that of this incident
+										$match_fields = customforms::get_custom_form_fields('',$new_report->form_id,false);
+							
+										// Field exists in that form?
+										if (isset($match_fields[$this->existing_fields[utf8::strtoupper($field_name)]]))
 										{
-											// Make sure this field is tagged to the same form as that of this incident
-											$match_fields = customforms::get_custom_form_fields('',$new_report->form_id,false);
-								
-											// Field exists in that form?
-											if (isset($match_fields[$this->existing_fields[utf8::strtoupper($field_name)]]))
+											// Get field type and default values
+											$match_field_id = $this->existing_fields[utf8::strtoupper($field_name)];
+											$match_field_type = $match_fields[$match_field_id]['field_type'];
+											$match_field_defaults = $match_fields[$match_field_id]['field_default'];
+											
+											// Grab form responses
+											$field_response = trim($field->nodeValue);
+											if ($field_response != '')
 											{
-												// Get field type and default values
-												$match_field_id = $this->existing_fields[utf8::strtoupper($field_name)];
-												$match_field_type = $match_fields[$match_field_id]['field_type'];
-												$match_field_defaults = $match_fields[$match_field_id]['field_default'];
+												// Initialize form response model
+												$new_form_response = new Form_Response_Model();
+												$new_form_response->incident_id = $new_report->id;
+												$new_form_response->form_field_id = $match_field_id;
 												
-												// Grab form responses
-												$field_response = trim($field->nodeValue);
-												if ($field_response != '')
+												// For radio buttons, checkbox fields and drop downs, make sure form responses are
+												// within bounds of allowable options for that field
+												// Split field defaults into individual values
+												$field_defaults = explode(',',$match_field_defaults);
+												
+												/* Radio buttons and Drop down fields which take single responses */
+												if ($match_field_type == 5 OR $match_field_type == 7)
 												{
-													// Initialize form response model
-													$new_form_response = new Form_Response_Model();
-													$new_form_response->incident_id = $new_report->id;
-													$new_form_response->form_field_id = $match_field_id;
-													
-													// For radio buttons, checkbox fields and drop downs, make sure form responses are
-													// within bounds of allowable options for that field
-													// Split field defaults into individual values
-													$field_defaults = explode(',',$match_field_defaults);
-													
-													/* Radio buttons and Drop down fields which take single responses */
-													if ($match_field_type == 5 OR $match_field_type == 7)
+													foreach ($match_field_defaults as $match_field_default)
 													{
-														foreach ($match_field_defaults as $match_field_default)
+														// Carry out a case insensitive string comparison
+														$new_form_response->form_response = strcasecmp($match_field_default, $field_response) == 0
+																							? $match_field_default 
+																							: NULL;
+														if ($new_form_response->form_response == NULL)
 														{
-															// Carry out a case insensitive string comparison
-															$new_form_response->form_response = strcasecmp($match_field_default, $field_response) == 0
-																								? $match_field_default 
-																								: NULL;
-															if ($new_form_response->form_response == NULL)
-															{
-																$this->notices[] = 'Invalid field response for field "'
-																					.$field_name.'" on report #'.$this->totalreports;
-															}
+															$this->notices[] = 'Invalid field response for field "'
+																				.$field_name.'" on report #'.$this->totalreports;
 														}
 													}
-													
-													// Checkboxes which 
-													if ($match_field_type == 6)
-													{
-														// Split user responses into individual value
-														$responses = explode(',', $field_response);
-														$values = array();
-														foreach ($match_field_defaults as $match_field_default)
-														{
-															foreach ($responses as $response)
-															{
-																$values[] = strcasecmp($match_field_default, $response) == 0
-																 			? $match_field_default 
-																			: NULL;
-															}
-														}
-														
-														// Concatenate checkbox values into a string, separated by a comma
-														$new_form_response->form_response = implode(",", $values);
-													}
-												
-													// For all other fields
-													else
-													{
-														$new_form_response->form_response = $field_response;
-													}
-													
-													// Only save if form response is not empty
-													if ($new_form_response->form_response != NULL)
-													{
-														$new_form_response->save();
-													}
-													
-													// Add this to array of form responses added
-													$this->incident_responses_added[] = $new_form_response->id;	
 												}
+												
+												// Checkboxes which 
+												if ($match_field_type == 6)
+												{
+													// Split user responses into individual value
+													$responses = explode(',', $field_response);
+													$values = array();
+													foreach ($match_field_defaults as $match_field_default)
+													{
+														foreach ($responses as $response)
+														{
+															$values[] = strcasecmp($match_field_default, $response) == 0
+															 			? $match_field_default 
+																		: NULL;
+														}
+													}
+													
+													// Concatenate checkbox values into a string, separated by a comma
+													$new_form_response->form_response = implode(",", $values);
+												}
+											
+												// For all other fields
+												else
+												{
+													$new_form_response->form_response = $field_response;
+												}
+												
+												// Only save if form response is not empty
+												if ($new_form_response->form_response != NULL)
+												{
+													$new_form_response->save();
+												}
+												
+												// Add this to array of form responses added
+												$this->incident_responses_added[] = $new_form_response->id;	
 											}
-											else
-											{
-												$this->notices[] = 'The field "'.$field_name.'" listed in report #'
-																	.$this->totalreports.' does not exist on form id #'.$new_report->form_id;
-											}									
 										}
 										else
 										{
 											$this->notices[] = 'The field "'.$field_name.'" listed in report #'
-																.$this->totalreports.' does not exist on this deployment';
-										}
+																.$this->totalreports.' does not exist on form id #'.$new_report->form_id;
+										}									
+									}
+									else
+									{
+										$this->notices[] = 'The field "'.$field_name.'" listed in report #'
+															.$this->totalreports.' does not exist on this deployment';
 									}
 								}
 							}
-						}
+						}	
 					}
-					
+				
 					
 					/* Step 5: Save incident persons for this report */
 					// Report Personal Information
-					foreach ($report->getElementsByTagName('personal-info') as $report_info)
+					$personal_info = $report->getElementsByTagName('personal-info');
+					
+					// If personal info exists
+					if ($personal_info->length > 0)
 					{
+						$report_info = $personal_info->item(0);
+
 						// First Name
-						foreach ($report_info->getElementsByTagName('firstname') as $report_firstname)
-						{
-							 $fname = $report_firstname->nodeValue;
-						}
-						$firstname = (isset($fname) AND $fname != '') ? $fname : NULL;
+						$firstname = $this->get_node_text($report_info, 'firstname') ? $this->get_node_text($report_info, 'firstname') : NULL;
 
 						// Last Name
-						foreach ($report_info->getElementsByTagName('lastname') as $report_lastname)
-						{
-						 	$lname = $report_lastname->nodeValue;
-						}
-						$lastname = (isset($lname) AND $lname != '') ? $lname : NULL;
+						$lastname = $this->get_node_text($report_info, 'lastname') ? $this->get_node_text($report_info, 'lastname') : NULL;
 
 						// Email
-						foreach ($report_info->getElementsByTagName('email') as $report_email)
-						{
-							 $r_email = $report_email->nodeValue;
-						}	
+						$r_email = $this->get_node_text($report_info, 'email') ? $this->get_node_text($report_info, 'email') : NULL;	
 						$email = (isset($r_email) AND $r_email != '' AND valid::email($r_email)) ? $r_email : NULL;
-						
+
 						$new_incident_person = new Incident_Person_Model();
 						$new_incident_person->incident_id = $new_report->id;
 						$new_incident_person->person_date = $new_report->incident_dateadd;
-						
+
 						// Make sure that at least one of the personal info field entries is provided
 						if ($firstname != NULL OR $lastname != NULL OR $email != NULL)
 						{
@@ -997,11 +933,11 @@ class XMLImporter {
 							$new_incident_person->person_last = $lastname;
 							$new_incident_person->person_email = $email;
 							$new_incident_person->save();
-							
+
 							// Add this to array of incident persons added during import
 							$this->incident_persons_added[] = $new_incident_person->id;
-						}
-					}		
+						}	
+					}			
 				}
 			}
 		}
@@ -1042,6 +978,27 @@ class XMLImporter {
 		$model->option_name = $option_name;
 		$model->option_value = $option_value;
 		$model->save();
+	}
+	
+	/**
+	 * Get node values from DOMNodeList element
+	 * @param DOMNodeList Object $node
+	 * @param string Element within DOMNodelist object
+	 * @return mixed
+	 */
+	
+	private function get_node_text($node, $tag_name)
+	{
+		try
+		{
+			$element = $node->getElementsByTagName($tag_name)->item(0);
+			return trim($element->nodeValue);
+		}
+		catch (Kohana_Exception $e)
+		{
+			Kohana::log("xml_upload_error", $e->getMessage());
+			return FALSE;
+		}
 	}
 }
 ?>
