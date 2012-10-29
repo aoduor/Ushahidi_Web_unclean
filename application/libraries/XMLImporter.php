@@ -177,7 +177,7 @@ class XMLImporter {
 			
 			if ($depcategories->length == 0 AND $depcustomforms->length == 0 AND $depreports->length == 0)
 			{
-				$this->errors[] = Kohana::lang('ui_admin.xml_missing_elements');
+				$this->errors[] = 'XML file selected for import must have at least one of the following: Categories, Custom forms or Reports';
 			}
 		
 			// If we're importing categories
@@ -185,7 +185,7 @@ class XMLImporter {
 			{
 				foreach ($depcategories as $categories)
 				{	
-					if ($categories->nodeValue != Kohana::lang('ui_admin.no_categories'))
+					if ($categories->nodeValue != 'There are no categories on this deployment.')
 					{
 						if ($this->import_categories($categories) == false)
 						{
@@ -196,7 +196,7 @@ class XMLImporter {
 					}
 					else
 					{
-						$this->notices[] = Kohana::lang('ui_admin.no_categories_imported');
+						$this->notices[] = 'There are no categories to import';
 					}
 				}
 			}
@@ -206,7 +206,7 @@ class XMLImporter {
 			{
 				foreach ($depcustomforms as $customforms)
 				{
-					if ($customforms->nodeValue != Kohana::lang('ui_admin.no_custom_forms'))
+					if ($customforms->nodeValue != 'There are no custom forms on this deployment.')
 					{
 						if ($this->import_customforms($customforms) == false)
 						{
@@ -217,7 +217,7 @@ class XMLImporter {
 					}
 					else
 					{
-						$this->notices[] = Kohana::lang('ui_admin.no_custom_forms_imported');
+						$this->notices[] = 'There are no custom forms to import.';
 					}
 				}
 			}
@@ -227,7 +227,7 @@ class XMLImporter {
 			{
 				foreach ($depreports as $reports)
 				{
-					if ($reports->nodeValue != Kohana::lang('ui_admin.no_reports'))
+					if ($reports->nodeValue != 'There are no reports on this deployment.')
 					{
 						if ($this->import_reports($reports) == false)
 						{
@@ -238,7 +238,7 @@ class XMLImporter {
 					}
 					else
 					{
-						$this->notices[] = Kohana::lang('ui_admin.no_reports_imported');
+						$this->notices[] = 'There are reports to import.';
 					}
 				}
 			}	
@@ -247,7 +247,7 @@ class XMLImporter {
 		// The file we're trying to load is empty
 		else
 		{
-			$this->errors[] = Kohana::lang('ui_admin.xml_empty');
+			$this->errors[] = 'Import failed. The file you have uploaded is empty.';
 		}
 		
 		// If we have errors, return FALSE, else TRUE
@@ -282,7 +282,7 @@ class XMLImporter {
 			// If either the category title or description is not provided
 			if (( ! isset($cat_title) OR $cat_title == '') OR ( ! isset($cat_description) OR $cat_description == ''))
 			{
-				$this->errors[] = Kohana::lang('category.xml_upload.category_required').$this->totalcategories;
+				$this->errors[] = 'The category title and category description fields are required. XML Import failed for category #'.$this->totalcategories;
 			}
 		
 			// Both category title and descriptions exist
@@ -342,73 +342,65 @@ class XMLImporter {
 							// Get Localization
 							$locale = trim($translation->getAttribute('locale'));
 							
-							// Does the locale attribute exist in the document?
-							if (isset($locale))
+							// Does the locale attribute exist in the document? And is it empty?
+							if (isset($locale) AND $locale != '')
 							{
-								// If localization attribute is empty
-								if ($locale == '')
-								{
-									$this->notices[] = Kohana::lang('category.xml_upload.translation_empty').$this->totalcategories;
-								}
 								
-								// Localization attribute exists
-								else
+								// Check if category translation exists for this localization
+								$existing_translations = ORM::factory('category_lang')
+														->where('category_id',$cat_id)
+														->where('locale', $locale)
+														->find_all();
+
+								// If Category translation does not exist, save it
+								if (count($existing_translations) == 0)
 								{
-									// Check if category translation exists for this localization
-									$existing_translations = ORM::factory('category_lang')
-															->where('category_id',$cat_id)
-															->where('locale', $locale)
-															->find_all();
-
-									// If Category translation does not exist, save it
-									if (count($existing_translations) == 0)
+									// Get category title for this localization
+									foreach ($translation->getElementsByTagName('transtitle') as $title)
 									{
-										// Get category title for this localization
-										foreach ($translation->getElementsByTagName('transtitle') as $title)
-										{
-											$trans_title = trim($title->nodeValue);
-										}
-										
-										// Category Description
-										foreach($translation->getElementsByTagName('transdescription') as $description)
-										{
-											$trans_description = trim($description->nodeValue);
-										}
-										
-										// If we're missing the translated category title
-										if ( ! isset($trans_title) OR $trans_title == '')
-										{
-											$this->notices[] = Kohana::lang('ui_admin.xml_translation_failed').utf8::strtoupper($locale)
-																." for category #".$this->totalcategories;
-										}
-										else
-										{
-											// Save Category Translations
-											$cl = new Category_Lang_Model();
-											$cl->locale = $locale;
-											$cl->category_id = $cat_id;
-											$cl->category_title = $trans_title;
-
-											$cl->category_description = (isset($trans_description) AND $trans_description !='')
-												? $trans_description
-												: NULL;
-
-											$cl->save();
-
-											// Add this to array of category translations added during import
-											$this->category_translations_added[] = $cl->id;
-											$this->notices[] = Kohana::lang('ui_admin.xml_translation')
-											    . '"'.utf8::strtoupper($locale)
-											    . '" for category "'.$cat_title.'"';
-										}
+										$trans_title = trim($title->nodeValue);
 									}
-								}
+									
+									// Category Description
+									foreach($translation->getElementsByTagName('transdescription') as $description)
+									{
+										$trans_description = trim($description->nodeValue);
+									}
+									
+									// If we're missing the translated category title
+									if ( ! isset($trans_title) OR $trans_title == '')
+									{
+										$this->notices[] = 'Category translation import failed. Missing category title: Localization '
+															.utf8::strtoupper($locale)
+															." for category #".$this->totalcategories;
+									}
+									else
+									{
+										// Save Category Translations
+										$cl = new Category_Lang_Model();
+										$cl->locale = $locale;
+										$cl->category_id = $cat_id;
+										$cl->category_title = $trans_title;
+
+										$cl->category_description = (isset($trans_description) AND $trans_description !='')
+											? $trans_description
+											: NULL;
+
+										$cl->save();
+
+										// Add this to array of category translations added during import
+										$this->category_translations_added[] = $cl->id;
+										$this->notices[] = 'Category translation added: Localization "'
+															.utf8::strtoupper($locale)
+										    				. '" for category "'.$cat_title.'"';
+									}
+								}	
 							}
 							
 							// Locale attribute does not exist
 							else
 							{
-								$this->notices[] = Kohana::lang('category.xml_upload.translation_empty').$this->totalcategories;
+								$this->notices[] = 'Could not import empty category translation for localization for category #'.$this->totalcategories;
 							}
 						}
 					}
@@ -651,7 +643,7 @@ class XMLImporter {
 	
 	/**
 	 * Import Reports via XML
-	 * @param DOMNodeList Object $reports
+	 * @param DOMNodeList Object $report
 	 * @return bool
 	 */
 	function import_reports($reports)
