@@ -80,7 +80,7 @@ class reports_Core {
 		{
 			foreach ($post->incident_news as $key => $url) 
 			{
-				if ( ! empty($url) AND !(bool) filter_var($url, FILTER_VALIDATE_URL, FILTER_FLAG_HOST_REQUIRED))
+				if ( ! empty($url) AND ! valid::url($url))
 				{
 					$post->add_error('incident_news','url');
 				}
@@ -92,7 +92,7 @@ class reports_Core {
 		{
 			foreach ($post->incident_video as $key => $url) 
 			{
-				if (!empty($url) AND !(bool) filter_var($url, FILTER_VALIDATE_URL, FILTER_FLAG_HOST_REQUIRED))
+				if (!empty($url) AND ! valid::url($url))
 				{
 					$post->add_error('incident_video','url');
 				}
@@ -325,7 +325,11 @@ class reports_Core {
 		$verify->incident_id = $incident->id;
 		
 		// Record 'Verified By' Action
-		$verify->user_id = $_SESSION['auth_user']->id;
+		$verify->user_id = 0;
+		if (Auth::instance()->get_user() instanceof User_Model)
+		{
+			$verify->user_id = Auth::instance()->get_user()->id;
+		}
 		$verify->verified_date = date("Y-m-d H:i:s",time());
 		
 		if ($incident->incident_active == 1)

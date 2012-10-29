@@ -15,7 +15,7 @@
  * @license    http://www.gnu.org/copyleft/lesser.html GNU Lesser General Public License (LGPL) 
  */
 ?>
-	<?php @require_once(APPPATH.'views/map_common_js.php'); ?>
+	<?php @require(APPPATH.'views/map_common_js.php'); ?>
 	
 	// Tracks the current URL parameters
 	var urlParameters = <?php echo $url_params; ?>;
@@ -77,7 +77,7 @@
 			$("#tooltip-box").css({
 				'left': ($(this).offset().left - 80),
 				'top': ($(this).offset().right)
-			}).show();
+			}).toggle();
 			
 	        return false;
 		});
@@ -477,7 +477,7 @@
 		addReportViewOptionsEvents();
 		
 		// Remove page links for the metadata pager
-		$("ul.pager a").attr("href", "#");
+		//$("ul.pager a").attr("href", "#");
 		
 		$("ul.pager a").click(function() {
 			// Add the clicked page to the url parameters
@@ -490,7 +490,7 @@
 		});
 		
 		$("td.last li a").click(function(){
-			pageNumber = $(this).attr("id").substr("page_".length);
+			pageNumber = $(this).attr("href").substr("#page_".length);
 			if (Number(pageNumber) > 0)
 			{
 				urlParameters["page"] = Number(pageNumber);
@@ -514,9 +514,9 @@
 		mapLoaded = 0;
 		
 		var loadingURL = "<?php echo url::file_loc('img').'media/img/loading_g.gif'; ?>";
-		var statusHtml = "<div style=\"width: 100%; margin-top: 100px;\" align=\"center\">" + 
+		var statusHtml = "<div class=\"loading-reports\">" + 
 					"<div><img src=\""+loadingURL+"\" border=\"0\"></div>" + 
-					"<p style=\"padding: 10px 2px;\"><h3><?php echo Kohana::lang('ui_main.loading_reports'); ?>...</h3></p>" +
+					"<h3><?php echo Kohana::lang('ui_main.loading_reports'); ?>...</h3>" +
 					"</div>";
 	
 		$("#reports-box").html(statusHtml);

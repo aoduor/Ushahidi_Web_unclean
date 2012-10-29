@@ -78,6 +78,7 @@ class Json_Controller extends Template_Controller {
 	{
 		$color = Kohana::config('settings.default_map_all');
 		$icon = "";
+		$markers = FALSE;
 		
 		if (Kohana::config('settings.default_map_all_icon_id'))
 		{
@@ -99,11 +100,15 @@ class Json_Controller extends Template_Controller {
 				$icon = url::convert_uploaded_to_abs($cat->category_image);
 			}
 		}
+		
+		$params = array('color' => $color, 'icon' => $icon);
+		Event::run('ushahidi_filter.json_alter_params', $params);
+		$color = $params['color'];
+		$icon = $params['icon'];
 
 		// Run event ushahidi_filter.json_replace_markers
 		// This allows a plugin to completely replace $markers
 		// If markers are added at this point we don't bother fetching incidents at all
-		$markers = FALSE;
 		Event::run('ushahidi_filter.json_replace_markers', $markers);
 
 		// Fetch the incidents
@@ -169,8 +174,21 @@ class Json_Controller extends Template_Controller {
 		{
 			// Handle both reports::fetch_incidents() response and actual ORM objects
 			$marker->id = isset($marker->incident_id) ? $marker->incident_id : $marker->id;
-			$latitude = isset($marker->latitude) ? $marker->latitude : $marker->location->latitude;
-			$longitude = isset($marker->longitude) ? $marker->longitude : $marker->location->longitude;
+			if (isset($marker->latitude) AND isset($marker->longitude))
+			{
+				$latitude = $marker->latitude;
+				$longitude = $marker->longitude;
+			}
+			elseif (isset($marker->location) AND isset($marker->location->latitude) AND isset($marker->location->longitude))
+			{
+				$latitude = $marker->location->latitude;
+				$longitude = $marker->location->longitude;
+			}
+			else
+			{
+				// No location - skip this report
+				continue;
+			}
 			
 			// Get thumbnail
 			$thumb = "";
@@ -234,7 +252,7 @@ class Json_Controller extends Template_Controller {
 			// Get Incident Geometries
 			if ($include_geometries)
 			{
-				$geometry = $this->_get_geometry($marker->id, $marker->incident_title, $marker->incident_date);
+				$geometry = $this->get_geometry($marker->id, $marker->incident_title, $marker->incident_date, $link);
 				if (count($geometry))
 				{
 					foreach ($geometry as $g)
@@ -296,16 +314,44 @@ class Json_Controller extends Template_Controller {
 		{
 			$marker	 = array_pop($markers);
 			$cluster = array();
+			
+			// Handle both reports::fetch_incidents() response and actual ORM objects
+			$marker->id = isset($marker->incident_id) ? $marker->incident_id : $marker->id;
+			if (isset($marker->latitude) AND isset($marker->longitude))
+			{
+				$marker_latitude = $marker->latitude;
+				$marker_longitude = $marker->longitude;
+			}
+			elseif (isset($marker->location) AND isset($marker->location->latitude) AND isset($marker->location->longitude))
+			{
+				$marker_latitude = $marker->location->latitude;
+				$marker_longitude = $marker->location->longitude;
+			}
+			else
+			{
+				// No location - skip this report
+				continue;
+			}
 
 			// Compare marker against all remaining markers.
 			foreach ($markers as $key => $target)
 			{
 				// Handle both reports::fetch_incidents() response and actual ORM objects
-				$marker->id = isset($marker->incident_id) ? $marker->incident_id : $marker->id;
-				$marker_latitude = isset($marker->latitude) ? $marker->latitude : $marker->location->latitude;
-				$marker_longitude = isset($marker->longitude) ? $marker->longitude : $marker->location->longitude;
-				$target_latitude = isset($target->latitude) ? $target->latitude : $target->location->latitude;
-				$target_longitude = isset($target->longitude) ? $target->longitude : $target->location->longitude;
+				if (isset($target->latitude) AND isset($target->longitude))
+				{
+					$target_latitude = $target->latitude;
+					$target_longitude = $target->longitude;
+				}
+				elseif (isset($target->location) AND isset($target->location->latitude) AND isset($target->location->longitude))
+				{
+					$target_latitude = $target->location->latitude;
+					$target_longitude = $target->location->longitude;
+				}
+				else
+				{
+					// No location - skip this report
+					continue;
+				}
 				
 				// This function returns the distance between two markers, at a defined zoom level.
 				// $pixels = $this->_pixelDistance($marker['latitude'], $marker['longitude'],
@@ -614,9 +660,10 @@ class Json_Controller extends Template_Controller {
 	 * @param int $incident_id
 	 * @param string $incident_title
 	 * @param int $incident_date
+	 * @param string $incident_link
 	 * @return array $geometry
 	 */
-	private function _get_geometry($incident_id, $incident_title, $incident_date)
+	protected function get_geometry($incident_id, $incident_title, $incident_date, $incident_link)
 	{
 		$geometry = array();
 		if ($incident_id)
@@ -630,8 +677,7 @@ class Json_Controller extends Template_Controller {
 				$geom_array = $geom->getGeoInterface();
 
 				$title = ($item->geometry_label) ? $item->geometry_label : $incident_title;
-				$link =  url::base()."reports/view/".$incident_id;
-				$item_name = $this->get_title($title, $link);
+				$item_name = $this->get_title($title, $incident_link);
 					
 				$fillcolor = ($item->geometry_color) ? 
 					utf8tohtml::convert($item->geometry_color,TRUE) : "ffcc66";
@@ -652,7 +698,7 @@ class Json_Controller extends Template_Controller {
 					'icon' => '',
 					'strokecolor' => $strokecolor,
 					'strokewidth' => $strokewidth,
-					'link' => $link,
+					'link' => $incident_link,
 					'category' => array(0),
 					'timestamp' => strtotime($incident_date),
 				);
