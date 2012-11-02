@@ -196,7 +196,7 @@ class download_Core {
 		);
 
 		// Array of category elements
-		$category_elements = array('color', 'visible', 'trusted', 'title', 'description');
+		$category_elements = array('color', 'visible', 'trusted', 'title', 'description','parent');
 		
 		/* Category translation Element/Attribute maps */
 		// Translation map
@@ -232,7 +232,7 @@ class download_Core {
 		// Field Map
 		
 		// Field elements
-		$form_field_elements = array('type', 'required', 'visible-by', 'submit-by');
+		$form_field_elements = array('type', 'required', 'visible-by', 'submit-by', 'datatype', 'hidden', 'default');
 		
 		/* Reports element/attribute maps */
 		// Report map
@@ -251,7 +251,7 @@ class download_Core {
 					);
 					
 		// Report elements
-		$report_elements = array('id', 'approved', 'verified', 'mode', 'title', 'date', 'dateadd');
+		$report_elements = array('id', 'approved', 'verified', 'form_id', 'mode', 'title', 'date', 'dateadd');
 		
 		// Location Map
 		$location_map = array(
@@ -322,17 +322,12 @@ class download_Core {
 						// If parent category exists
 						if ($parent->loaded)
 						{
-							// Add to array of category elements + category_map for purposes of generating tags
-							$category_elements[] = 'parent';
+							// Add to array of category_element_map for purposes of generating tags
 							$category_element_map['elements']['parent'] = $parent->category_title;
 						}
 						
 						// Generate individual category tags						
 						self::generate_tags($writer, $category_element_map, $category_elements);
-						
-						// Gargage collection for any elements added for this category
-						unset($category_elements[5]);
-						$category_elements = array_values($category_elements);
 
 						// Category Translation
 						$translations = ORM::factory('category_lang')->where('category_id', $category->id)->find_all();
@@ -411,13 +406,11 @@ class download_Core {
 								if ($option->option_name == 'field_datatype')
 								{
 									// Data type i.e Free, Numeric, Email, Phone?
-									$form_field_elements[] = 'datatype';
 									$form_field_map['attributes']['datatype'] = $option->option_value;
 								}
 								if ($option->option_name == 'field_hidden')
 								{
 									// Hidden Field?
-									$form_field_elements[] = 'hidden';
 									$form_field_map['attributes']['hidden'] = $option->option_value;
 								}
 							}
@@ -429,7 +422,6 @@ class download_Core {
 							// Default Value
 							if ($field['field_default'] != '')
 							{
-								$form_field_elements[] = 'default';
 								$form_field_map['elements']['default'] = $field['field_default'];
 							}
 	
@@ -475,6 +467,7 @@ class download_Core {
 				
 				// Generate report map
 				$report_map_element = self::generate_element_attribute_map($incident, $report_map);
+				$report_map_element['attributes']['form_id'] = $form_name;
 				
 				// Generate report tags
 				self::generate_tags($writer, $report_map_element, $report_elements);
