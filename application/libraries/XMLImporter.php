@@ -262,17 +262,17 @@ class XMLImporter {
 			$this->totalcategories++;
 			
 			// Category Title
-			$cat_title = $this->get_node_text($category, 'title') ? $this->get_node_text($category, 'title') : '';
+			$cat_title = $this->get_node_text($category, 'title');
 			
 			// Category Description
 			/* TO DO: Sanity Check */
-			$cat_description = $this->get_node_text($category, 'description') ? $this->get_node_text($category, 'description') : '';
+			$cat_description = $this->get_node_text($category, 'description');
 				
-			
 			// If either the category title or description is not provided
-			if ($cat_title == '' OR $cat_description == '')
+			if ( ! $cat_title OR  ! $cat_description )
 			{
-				$this->errors[] = 'The category title and category description fields are required. XML Import failed for category #'.$this->totalcategories;
+				$this->errors[] = 'The category title and category description fields are required. XML Import failed for category #'
+									.$this->totalcategories;
 			}
 		
 			// Both category title and descriptions exist
@@ -284,16 +284,20 @@ class XMLImporter {
 					// Get category attributes
 					$cat_color = $category->getAttribute('color');
 					$cat_visible = $category->getAttribute('visible');
+					$cat_trusted = $category->getAttribute('trusted');
 			
 					/* Get other category elements */
 					// Parent Category
 					$parent = $category->getElementsByTagName('parent');
 					if ($parent->length > 0)
 					{
-						$cat_parent = $this->get_node_text($category, 'parent') ? $this->get_node_text($category, 'parent') : '';
-						$parent_id = isset($this->existing_categories[utf8::strtoupper($cat_parent)])
-						 			? $this->existing_categories[utf8::strtoupper($cat_parent)] 
-									: 0; 	
+						$cat_parent = $this->get_node_text($category, 'parent');
+						if ($cat_parent)
+						{
+							$parent_id = isset($this->existing_categories[utf8::strtoupper($cat_parent)])
+							 			? $this->existing_categories[utf8::strtoupper($cat_parent)] 
+										: 0;
+						}	 	
 					}
 			
 					// Save the Category
@@ -303,6 +307,7 @@ class XMLImporter {
 					$new_category->parent_id = isset($parent_id) ? $parent_id : 0;
 					$new_category->category_color = isset($cat_color) ? $cat_color : '000000';
 					$new_category->category_visible = ( isset($cat_visible) AND in_array($cat_visible, $this->allowable)) ? $cat_visible : 1;
+					$new_category->category_trusted = ( isset($cat_trusted) AND in_array($cat_trusted, $this->allowable)) ? $cat_trusted : 1;
 					$new_category->category_position = count($this->existing_categories);
 					$new_category->save();
 				
@@ -343,15 +348,13 @@ class XMLImporter {
 							if (count($existing_translations) == 0)
 							{
 								// Get category title for this localization
-								$trans_title = $this->get_node_text($translation, 'transtitle') ? $this->get_node_text($translation, 'transtitle') : '';
+								$trans_title = $this->get_node_text($translation, 'transtitle');
 								
 								// Category Description
-								$trans_description = $this->get_node_text($translation, 'transdescription') 
-													? $this->get_node_text($translation, 'transdescription')
-													: '';
+								$trans_description = $this->get_node_text($translation, 'transdescription');
 								
 								// If we're missing the translated category title
-								if ( $trans_title == '')
+								if ( ! $trans_title)
 								{
 									$this->notices[] = 'Category translation import failed. Missing category title: Localization '
 														.utf8::strtoupper($locale)
@@ -364,7 +367,7 @@ class XMLImporter {
 									$cl->locale = $locale;
 									$cl->category_id = $cat_id;
 									$cl->category_title = $trans_title;
-									$cl->category_description = $trans_description !='' ? $trans_description : NULL;
+									$cl->category_description = $trans_description ? $trans_description : NULL;
 									$cl->save();
 									
 									// Add this to array of category translations added during import
@@ -406,10 +409,10 @@ class XMLImporter {
 			$totalfields = 0;
 			
 			// Form Title
-			$title = $this->get_node_text($form, 'title') ? $this->get_node_text($form, 'title') : '';
+			$title = $this->get_node_text($form, 'title');
 			
 			// If the form title is missing
-			if ( $title == '')
+			if ( ! $title)
 			{
 				$this->errors[] = "Form title must be provided for form #".$this->totalforms;
 			}
@@ -427,12 +430,12 @@ class XMLImporter {
 					$active = (isset($form_active) AND in_array($form_active, $this->allowable))? $form_active : NULL;
 					
 					// Form Description
-					$description = $this->get_node_text($form, 'description') ? $this->get_node_text($form, 'description') : '';
+					$description = $this->get_node_text($form, 'description');
 					
 					// Save it
 					$new_form = new Form_Model();
 					$new_form->form_title = $title;
-					$new_form->form_description = $description != '' ? $description : NULL;
+					$new_form->form_description = $description ? $description : NULL;
 					$new_form->form_active = isset($active) ? $active: 1;
 					$new_form->save();
 
@@ -454,7 +457,7 @@ class XMLImporter {
 						$totalfields++;
 						
 						// Field Name
-						$name = $this->get_node_text($field, 'name') ? $this->get_node_text($field, 'name') : '';
+						$name = $this->get_node_text($field, 'name');
 					
 						// Field Type
 						$field_type = $field->getAttribute('type');
@@ -464,7 +467,7 @@ class XMLImporter {
 						$type = (isset($field_type) AND in_array($field_type, $allowable_types) )? $field_type : NULL;
 						
 						// If field name is missing or field type is null 
-						if ($name == '' OR ! isset($type))
+						if (! $name OR ! isset($type))
 						{
 							$this->notices[] = 'Custom field name missing/field type not allowed. Import failed for field #'
 							.$totalfields.' on form "'.$title.'"';
@@ -492,8 +495,8 @@ class XMLImporter {
 								$fielddefault = $field->getElementsByTagName('default');
 								if ($fielddefault->length > 0)
 								{		
-									$default = $this->get_node_text($field, 'default') ? $this->get_node_text($field, 'default') : '';
-									$default_values = $default != '' ? $default : NULL;
+									$default = $this->get_node_text($field, 'default');
+									$default_values = $default ? $default : NULL;
 								}
 								
 								// Make sure we have default values for Radio buttons, Checkboxes and drop down fields
@@ -639,20 +642,15 @@ class XMLImporter {
 					$report_location = $locations->item(0);
 					
 					// Location Name
-					$location_name = $this->get_node_text($report_location, 'name') 
-									? $this->get_node_text($report_location, 'name') 
-									: NULL;
+					$location_name = $this->get_node_text($report_location, 'name');
+					
 					// Longitude
-					$longitude = $this->get_node_text($report_location, 'longitude')
-								? $this->get_node_text($report_location, 'longitude')
-								: 0;
+					$longitude = $this->get_node_text($report_location, 'longitude');
 					
 					// Latitude
-					$latitude = $this->get_node_text($report_location, 'latitude')
-								? $this->get_node_text($report_location, 'latitude')
-								: 0;
+					$latitude = $this->get_node_text($report_location, 'latitude');
 									
-					if ($location_name != NULL)
+					if ($location_name)
 					{
 						// For geocoding purposes
 						$location_geocoded = Geocoder::geocode_location($location_name);
@@ -663,16 +661,17 @@ class XMLImporter {
 						$new_location->location_date = $this->time;
 						
 						// If longitude/latitude values are not present
-						if ($latitude == 0 AND $longitude == 0)
+						if ($latitude AND $longitude)
+						{
+							$new_location->latitude = $latitude;
+							$new_location->longitude = $longitude;
+							
+						}
+						else
 						{
 							// Get geocoded lat/lon values
 							$new_location->latitude = $location_geocoded ? $location_geocoded[1] : $latitude;
 							$new_location->longitude = $location_geocoded ? $location_geocoded[0] : $longitude;
-						}
-						else
-						{
-							$new_location->latitude = $latitude;
-							$new_location->longitude = $longitude;
 						} 
 						$new_location->country_id = $location_geocoded ? $location_geocoded[2] : 0;
 						$new_location->save();
@@ -685,13 +684,13 @@ class XMLImporter {
 				
 				/* Step 2: Save Report */
 				// Report Title
-				$report_title = $this->get_node_text($report, 'title') ? $this->get_node_text($report, 'title') : '';
+				$report_title = $this->get_node_text($report, 'title');
 				
 				// Report Date
-				$report_date = $this->get_node_text($report, 'date')  ? $this->get_node_text($report, 'date') : '';
+				$report_date = $this->get_node_text($report, 'date');
 				
 				// Missing report title or report date?
-				if ($report_title == '' OR $report_date == '')
+				if ( ! $report_title OR ! $report_date)
 				{
 					$this->errors[] = "Both Report Title and Report Date are required for incident #".$this->totalreports;
 				}
@@ -735,18 +734,18 @@ class XMLImporter {
 					}
 					
 					// Report Date added
-					$dateadd = $this->get_node_text($report, 'dateadd')  ? $this->get_node_text($report, 'dateadd') : '';
+					$dateadd = $this->get_node_text($report, 'dateadd');
 					
 					// Report Description
-					$report_description = $this->get_node_text($report, 'description')  ? $this->get_node_text($report, 'description') : '';
+					$report_description = $this->get_node_text($report, 'description');
 
 					$new_report = new Incident_Model();
 					$new_report->location_id = isset($new_location) ? $new_location->id : 0;
 					$new_report->user_id = 0;
 					$new_report->incident_title = $report_title;
-					$new_report->incident_description = $report_description;
+					$new_report->incident_description = $report_description ? $report_description : '';
 					$new_report->incident_date = date("Y-m-d H:i:s",strtotime($report_date));
-					$new_report->incident_dateadd = ($dateadd != '' AND strtotime($dateadd))? $dateadd : $this->time;
+					$new_report->incident_dateadd = ($dateadd AND strtotime($dateadd))? $dateadd : $this->time;
 					$new_report->incident_active = $report_approved;
 					$new_report->incident_verified = $report_verified;
 					$new_report->incident_mode = $report_mode;
@@ -913,21 +912,21 @@ class XMLImporter {
 						$report_info = $personal_info->item(0);
 
 						// First Name
-						$firstname = $this->get_node_text($report_info, 'firstname') ? $this->get_node_text($report_info, 'firstname') : NULL;
+						$firstname = $this->get_node_text($report_info, 'firstname');
 
 						// Last Name
-						$lastname = $this->get_node_text($report_info, 'lastname') ? $this->get_node_text($report_info, 'lastname') : NULL;
+						$lastname = $this->get_node_text($report_info, 'lastname');
 
 						// Email
-						$r_email = $this->get_node_text($report_info, 'email') ? $this->get_node_text($report_info, 'email') : NULL;	
-						$email = (isset($r_email) AND $r_email != '' AND valid::email($r_email)) ? $r_email : NULL;
+						$r_email = $this->get_node_text($report_info, 'email');	
+						$email = ($r_email AND valid::email($r_email)) ? $r_email : NULL;
 
 						$new_incident_person = new Incident_Person_Model();
 						$new_incident_person->incident_id = $new_report->id;
 						$new_incident_person->person_date = $new_report->incident_dateadd;
 
 						// Make sure that at least one of the personal info field entries is provided
-						if ($firstname != NULL OR $lastname != NULL OR $email != NULL)
+						if ($firstname OR $lastname OR $email != NULL)
 						{
 							$new_incident_person->person_first = $firstname;
 							$new_incident_person->person_last = $lastname;
@@ -984,21 +983,24 @@ class XMLImporter {
 	 * Get node values from DOMNodeList element
 	 * @param DOMNodeList Object $node
 	 * @param string Element within DOMNodelist object
-	 * @return mixed
+	 * @return mixed String if the node value exists, FALSE otherwise
 	 */
 	
 	private function get_node_text($node, $tag_name)
 	{
+		$node_value = NULL;
 		try
 		{
 			$element = $node->getElementsByTagName($tag_name)->item(0);
-			return trim($element->nodeValue);
+			$node_value = trim($element->nodeValue);
 		}
 		catch (Kohana_Exception $e)
 		{
 			Kohana::log("xml_upload_error", $e->getMessage());
 			return FALSE;
 		}
+		
+		return ! empty($node_value) ? $node_value : FALSE;		
 	}
 }
 ?>
