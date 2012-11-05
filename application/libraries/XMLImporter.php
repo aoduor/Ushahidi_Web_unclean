@@ -154,14 +154,17 @@ class XMLImporter {
 		$this->existing_forms = $temp_forms;
 	
 		// Pick out existing form fields
-		$this->existing_fields = ORM::factory('form_field')->select_list('field_name', 'id');
+		$form_fields = customforms::get_custom_form_fields(FALSE, '', FALSE);
 		$temp_fields = array();
-		foreach ($this->existing_fields as $name => $id)
+		foreach ($form_fields as $existing_field)
 		{
-			$temp_fields[utf8::strtoupper($name)] = $id;
+			$field_name = $existing_field['field_name'];
+			$form_id = $existing_field['form_id'];
+			$field_id = $existing_field['field_id'];
+			$temp_fields[utf8::strtoupper($field_name)][$form_id] = $field_id;
 		}
 		$this->existing_fields = $temp_fields;
-		
+		 
 		// For purposes of adding location time
 		$this->time = date("Y-m-d H:i:s",time());
 		
@@ -476,8 +479,10 @@ class XMLImporter {
 						// Field name is provided, proceed
 						else
 						{
-							// If the field does not already exist
-							if ( ! isset($this->existing_fields[utf8::strtoupper($name)]))
+							$this_form = $this->existing_forms[utf8::strtoupper($title)];
+							
+							// If the field does not already exist in this form
+							if ( ! isset($this->existing_fields[utf8::strtoupper($name)][$this_form]))
 							{
 								// Field Required
 								$field_required = $field->getAttribute('required');
