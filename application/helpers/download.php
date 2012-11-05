@@ -19,7 +19,7 @@ class download_Core {
 	{
 		// Column Titles
 		ob_start();
-		echo "#,INCIDENT TITLE,INCIDENT DATE";
+		echo "#,FORM #,INCIDENT TITLE,INCIDENT DATE";
 		$item_map = array(
 		    1 => 'LOCATION',
 		    2 => 'DESCRIPTION',
@@ -35,7 +35,7 @@ class download_Core {
 			{
 				foreach($custom_forms as $field_name)
 				{
-					echo ",".$field_name['field_name'];
+					echo ",".$field_name['field_name']."-".$field_name['form_id'];
 				}
 
 			}
@@ -57,6 +57,7 @@ class download_Core {
 		foreach ($incidents as $incident)
 		{
 			echo '"'.$incident->id.'",';
+			echo '"'.$incident->form_id.'",';
 			echo '"'.self::_csv_text($incident->incident_title).'",';
 			echo '"'.$incident->incident_date.'"';
 

@@ -217,6 +217,7 @@ class CSVImporter {
 		$incident = new Incident_Model();
 		$incident->location_id = isset($row['LOCATION']) ? $location->id : 0;
 		$incident->user_id = 0;
+		$incident->form_id = (isset($row['FORM #']) AND Form_Model::is_valid_form($row['FORM #'])) ? $row['FORM #'] : 1;
 		$incident->incident_title = $row['INCIDENT TITLE'];
 		$incident->incident_description = isset($row['DESCRIPTION']) ? $row['DESCRIPTION'] : '';
 		$incident->incident_date = date("Y-m-d H:i:s",strtotime($row['INCIDENT DATE']));
@@ -300,7 +301,11 @@ class CSVImporter {
 		}
 		
 		// STEP 5: Save Custom form fields responses
-		$custom_titles = customforms::get_custom_form_fields('','',false);
+		// Check for form_id
+		$form_id = (isset($row['FORM #']) AND Form_Model::is_valid_form($row['FORM #'])) ? $row['FORM #'] : 1;
+		
+		// Get custom form fields for this particular form
+		$custom_titles = customforms::get_custom_form_fields('',$form_id,false);
 		
 		// Do custom form fields exist on this deployment?
 		if (!empty($custom_titles))
@@ -309,9 +314,9 @@ class CSVImporter {
 			{
 				// Check if the column exists in the CSV
 				$rowname = utf8::strtoupper($field_name['field_name']);
-				if(isset($row[$rowname]))
+				if(isset($row[$rowname.'-'.$form_id]))
 				{		
-					$response = $row[$rowname];
+					$response = $row[$rowname.'-'.$form_id];
 						
 					// Grab field_id and field_type
 					$field_id = $field_name['field_id'];
