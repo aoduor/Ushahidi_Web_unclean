@@ -451,6 +451,7 @@ class XMLImporter {
 				}
 
 				// Form Fields
+				$this_form = $this->existing_forms[utf8::strtoupper($title)];
 				$fields = $form->getElementsByTagName('field');
 				if ($fields->length > 0)
 				{
@@ -479,8 +480,6 @@ class XMLImporter {
 						// Field name is provided, proceed
 						else
 						{
-							$this_form = $this->existing_forms[utf8::strtoupper($title)];
-							
 							// If the field does not already exist in this form
 							if ( ! isset($this->existing_fields[utf8::strtoupper($name)][$this_form]))
 							{
@@ -518,7 +517,7 @@ class XMLImporter {
 								{
 									// Save the form field
 									$new_field = new Form_Field_Model();
-									$new_field->form_id = $this->existing_forms[utf8::strtoupper($title)];
+									$new_field->form_id = $this_form;
 									$new_field->field_name = $name;
 									$new_field->field_type = $type;
 									$new_field->field_required = $required;
@@ -528,7 +527,7 @@ class XMLImporter {
 									$new_field->save();
 									
 									// Add this field to array of existing fields
-									$this->existing_fields[utf8::strtoupper($name)] = $new_field->id;
+									$this->existing_fields[utf8::strtoupper($name)][$this_form] = $new_field->id;
 									
 									// Also add it to array of fields added during import
 									$this->fields_added[] = $new_field->id;
@@ -538,7 +537,7 @@ class XMLImporter {
 									if ($field->hasAttribute('datatype') OR $field->hasAttribute('hidden'))
 									{
 										// Get current field_id
-										$fieldid = $this->existing_fields[utf8::strtoupper($name)];
+										$fieldid = $this->existing_fields[utf8::strtoupper($name)][$this_form];
 
 										if ($field->hasAttribute('datatype'))
 										{
@@ -796,6 +795,7 @@ class XMLImporter {
 						
 					/* Step 4: Save Custom form field responses for this report */
 					// Report Custom Fields
+					$this_form = $new_report->form_id;
 					$reportfields = $report->getElementsByTagName('customfields');
 					if ($reportfields->length > 0)
 					{
@@ -810,16 +810,16 @@ class XMLImporter {
 								if ($field_name != '')
 								{
 									// If this field exists
-									if(isset($this->existing_fields[utf8::strtoupper($field_name)]))
+									if(isset($this->existing_fields[utf8::strtoupper($field_name)][$this_form]))
 									{
 										// Make sure this field is tagged to the same form as that of this incident
 										$match_fields = customforms::get_custom_form_fields('',$new_report->form_id,false);
 							
 										// Field exists in that form?
-										if (isset($match_fields[$this->existing_fields[utf8::strtoupper($field_name)]]))
+										if (isset($match_fields[$this->existing_fields[utf8::strtoupper($field_name)][$this_form]]))
 										{
 											// Get field type and default values
-											$match_field_id = $this->existing_fields[utf8::strtoupper($field_name)];
+											$match_field_id = $this->existing_fields[utf8::strtoupper($field_name)][$this_form];
 											$match_field_type = $match_fields[$match_field_id]['field_type'];
 											$match_field_defaults = $match_fields[$match_field_id]['field_default'];
 											
