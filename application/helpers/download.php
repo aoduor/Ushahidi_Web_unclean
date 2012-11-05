@@ -232,7 +232,7 @@ class download_Core {
 		// Field Map
 		
 		// Field elements
-		$form_field_elements = array('type', 'required', 'visible-by', 'submit-by', 'datatype', 'hidden', 'default');
+		$form_field_elements = array('type', 'required', 'visible-by', 'submit-by', 'datatype', 'hidden', 'name', 'default');
 		
 		/* Reports element/attribute maps */
 		// Report map
@@ -292,10 +292,18 @@ class download_Core {
 		// Personal info elements
 		$person_elements = array('firstname', 'lastname', 'email');
 		
-		// Incident responses map
-		
-		// Incident responses elements
-		
+		// Incident Category map
+		$incident_category_map = array(
+									'attributes' => array(),
+									'elements' => array(
+										'category' => 'category_title',
+									)
+			
+								);
+					
+		// Incident Category elements 
+		$incident_category_elements = array('category');
+												
 		/* Start Import Tag*/
 		$writer->startElement('import');
 		
@@ -378,7 +386,11 @@ class download_Core {
 					{	
 						// Custom Form element
 						$writer->startElement('form');
+						
+						// Generate form elements map
 						$form_element_map = self::generate_element_attribute_map($form, $form_map);
+						
+						// Generate form element tags
 						self::generate_tags($writer, $form_element_map, $form_elements);
 					
 						// Get custom fields associated with this form
@@ -416,7 +428,6 @@ class download_Core {
 							}
 							
 							// Field name
-							$form_field_elements[] = 'name';
 							$form_field_map['elements']['name'] = $field['field_name'];
 
 							// Default Value
@@ -461,16 +472,18 @@ class download_Core {
 				// Start Individual report
 				$writer->startElement('report');
 								
+				// Generate report map
+				$report_element_map = self::generate_element_attribute_map($incident, $report_map);
+				
 				// Form this incident belongs to?
 				$form = ORM::factory('form')->find($incident->form_id);
 				$form_name = $form->loaded ? $form->form_title : '';
 				
-				// Generate report map
-				$report_map_element = self::generate_element_attribute_map($incident, $report_map);
-				$report_map_element['attributes']['form_id'] = $form_name;
+				// Add it to report element map
+				$report_element_map['attributes']['form_id'] = $form_name;
 				
 				// Generate report tags
-				self::generate_tags($writer, $report_map_element, $report_elements);
+				self::generate_tags($writer, $report_element_map, $report_elements);
 								
 				foreach($post->data_include as $item)
 				{
@@ -492,6 +505,8 @@ class download_Core {
 						
 						// Generate location tags
 						self::generate_tags($writer, $location_map_element, $location_elements);
+						
+						// Close location tag
 						$writer->endElement();
 						break;
 
@@ -513,6 +528,8 @@ class download_Core {
 									
 									// Generate media elements
 									self::generate_tags($writer, $media_element_map, $media_elements);
+									
+									// Close item tag
 									$writer->endElement();
 								}
 							}
@@ -526,8 +543,14 @@ class download_Core {
 						if ($incident_person->loaded)
 						{
 							$writer->startElement('personal-info');
+							
+							// Generate incident person element map
 							$person_element_map = self::generate_element_attribute_map($incident_person, $person_map);
-							self::generate_tags($writer, $person_element_map, $person_elements);	
+							
+							// Generate incident person element tags
+							self::generate_tags($writer, $person_element_map, $person_elements);
+							
+							// Close personal info tag	
 							$writer->endElement();
 						}
 						break;
@@ -538,9 +561,11 @@ class download_Core {
 						$writer->startElement('reportcategories');
 						foreach($incident->incident_category as $category)
 						{
-							$writer->startElement('category');
-								$writer->text($category->category->category_title);
-							$writer->endElement();
+							// Generate Incident Category Element Map
+							$incident_category_element_map = self::generate_element_attribute_map($category->category, $incident_category_map);
+							
+							// Generate Incident Category Tags
+							self::generate_tags($writer, $incident_category_element_map, $incident_category_elements);
 						}
 						$writer->endElement();
 						break;
