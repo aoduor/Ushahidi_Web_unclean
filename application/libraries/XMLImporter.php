@@ -131,6 +131,9 @@ class XMLImporter {
 	 */
 	public function import_xml($file)
 	{
+		// Load Database Library, for purposes of input sanitization
+		$this->db = new Database;
+		
 		/* For purposes of checking whether the data we're trying to import already exists */
 		// Pick out existing categories 
 		$this->existing_categories = ORM::factory('category')->select_list('category_title','id');
@@ -268,7 +271,6 @@ class XMLImporter {
 			$cat_title = $this->get_node_text($category, 'title');
 			
 			// Category Description
-			/* TO DO: Sanity Check */
 			$cat_description = $this->get_node_text($category, 'description');
 				
 			// If either the category title or description is not provided
@@ -285,10 +287,10 @@ class XMLImporter {
 				if ( ! isset($this->existing_categories[utf8::strtoupper($cat_title)]))
 				{
 					// Get category attributes
-					$cat_color = $category->getAttribute('color');
+					$cat_color = $this->get_node_text($category, 'color', FALSE);
 					$cat_visible = $category->getAttribute('visible');
 					$cat_trusted = $category->getAttribute('trusted');
-			
+					
 					/* Get other category elements */
 					// Parent Category
 					$parent = $category->getElementsByTagName('parent');
@@ -308,9 +310,9 @@ class XMLImporter {
 					$new_category->category_title = $cat_title;
 					$new_category->category_description = $cat_description;
 					$new_category->parent_id = isset($parent_id) ? $parent_id : 0;
-					$new_category->category_color = isset($cat_color) ? $cat_color : '000000';
+					$new_category->category_color = $cat_color ? $cat_color : '000000';
 					$new_category->category_visible = ( isset($cat_visible) AND in_array($cat_visible, $this->allowable)) ? $cat_visible : 1;
-					$new_category->category_trusted = ( isset($cat_trusted) AND in_array($cat_trusted, $this->allowable)) ? $cat_trusted : 1;
+					$new_category->category_trusted = ( isset($cat_trusted) AND in_array($cat_trusted, $this->allowable)) ? $cat_trusted : 0;
 					$new_category->category_position = count($this->existing_categories);
 					$new_category->save();
 				
@@ -335,12 +337,11 @@ class XMLImporter {
 					foreach ($cat_translations->getElementsByTagName('translation') as $translation)
 					{
 						// Get Localization
-						$locale = trim($translation->getAttribute('locale'));
+						$locale = $this->get_node_text($translation,'locale', FALSE);
 						
 						// Does the locale attribute exist in the document? And is it empty?
-						if (isset($locale) AND $locale != '')
-						{
-							
+						if ($locale)
+						{	
 							// Check if category translation exists for this localization
 							$existing_translations = ORM::factory('category_lang')
 													->where('category_id',$cat_id)
@@ -430,7 +431,7 @@ class XMLImporter {
 					$form_active = $form->getAttribute('active');
 
 					// Make sure form status value is allowable
-					$active = (isset($form_active) AND in_array($form_active, $this->allowable))? $form_active : NULL;
+					$active = (isset($form_active) AND in_array($form_active, $this->allowable))? $form_active : 1;
 					
 					// Form Description
 					$description = $this->get_node_text($form, 'description');
@@ -439,7 +440,7 @@ class XMLImporter {
 					$new_form = new Form_Model();
 					$new_form->form_title = $title;
 					$new_form->form_description = $description ? $description : NULL;
-					$new_form->form_active = isset($active) ? $active: 1;
+					$new_form->form_active = $active;
 					$new_form->save();
 
 					// Add new form to array of existing forms
@@ -549,9 +550,9 @@ class XMLImporter {
 											// No, none exists
 											if (count($existing_datatype) == 0)
 											{
-												$datatype = trim($field->getAttribute('datatype'));
+												$datatype = $this->get_node_text($field,'datatype', FALSE);
 												$allowed_types = array('email', 'phonenumber', 'numeric', 'text');
-												$field_datatype = ($datatype != '' AND in_array($datatype, $allowed_types))? $datatype : NULL;
+												$field_datatype = ($datatype AND in_array($datatype, $allowed_types))? $datatype : NULL;
 
 												// If field datatype is not null, save
 												if ($field_datatype != NULL)
@@ -723,8 +724,8 @@ class XMLImporter {
 					$report_mode = (isset($mode) AND in_array($mode, $allowed_modes)) ? $mode : 1;
 					
 					// Report Form
-					$report_form = trim($report->getAttribute('form_id'));
-					if (isset($report_form) AND $report_form != '')
+					$report_form = $this->get_node_text($report,'form_id', FALSE);
+					if ($report_form)
 					{
 						if (! isset($this->existing_forms[utf8::strtoupper($report_form)]))
 						{
@@ -806,8 +807,8 @@ class XMLImporter {
 							foreach ($custom_fields as $field)
 							{
 								// Field Name
-								$field_name = $field->hasAttribute('name') ? trim($field->getAttribute('name')) : '';
-								if ($field_name != '')
+								$field_name = $field->hasAttribute('name') ? $this->get_node_text($field, 'name', FALSE) : FALSE;
+								if ($field_name)
 								{
 									// If this field exists
 									if(isset($this->existing_fields[utf8::strtoupper($field_name)][$this_form]))
@@ -985,19 +986,30 @@ class XMLImporter {
 	}
 	
 	/**
-	 * Get node values from DOMNodeList element
+	 * Get node values from DOMNodeList element /attribute, and sanitize
 	 * @param DOMNodeList Object $node
-	 * @param string Element within DOMNodelist object
+	 * @param string Element within DOMNodelist object $tag_name
+	 * @param boolean $element Set to FALSE if getting an attribute value
 	 * @return mixed String if the node value exists, FALSE otherwise
-	 */
-	
-	private function get_node_text($node, $tag_name)
+	 */	
+	private function get_node_text($node, $tag_name, $element = TRUE)
 	{
 		$node_value = NULL;
 		try
 		{
-			$element = $node->getElementsByTagName($tag_name)->item(0);
-			$node_value = trim($element->nodeValue);
+			// This is an element
+			if ($element)
+			{
+				$element = $node->getElementsByTagName($tag_name)->item(0);
+				$node_value = trim($this->db->escape_str($element->nodeValue));
+			}
+			
+			// This is an attribute
+			else
+			{
+				$attribute = $node->getAttribute($tag_name);
+				$node_value = trim($this->db->escape_str($attribute));
+			}
 		}
 		catch (Kohana_Exception $e)
 		{
