@@ -343,7 +343,7 @@ class Incidents_Api_Object_Test extends PHPUnit_Framework_TestCase {
 	public function testGetIncidentsBySinceId()
 	{
 		// Get random incident id - it must be active and should not be the last record in the table
-		$incident_id = testutils::get_random_id('incident', 'WHERE incident_active = 1 AND id NOT IN(SELECT * FROM (SELECT id from incident ORDER BY id DESC LIMIT 1) as last_id)');
+		$incident_id = testutils::get_random_id('incident', 'WHERE incident_active = 1 AND id NOT IN(SELECT * FROM (SELECT id from incident where incident_active = 1 ORDER BY id DESC LIMIT 1) as last_id)');
 		
 		// HTTP GET data
 		$_GET = array('task' => 'incidents', 'by' => 'sinceid', 'id'=> $incident_id);
@@ -352,7 +352,7 @@ class Incidents_Api_Object_Test extends PHPUnit_Framework_TestCase {
 		$this->api_controller->index();
 		$contents = json_decode(ob_get_clean());
 		
-		$this->assertEquals("0", $contents->error->code);
+		$this->assertEquals("0", $contents->error->code, 'incident id is'.$incident_id);
 		
 		// Get random index for the payload data
 		$index = rand(0, count($contents->payload->incidents) - 1);
