@@ -352,7 +352,7 @@ class Incidents_Api_Object_Test extends PHPUnit_Framework_TestCase {
 		$this->api_controller->index();
 		$contents = json_decode(ob_get_clean());
 		
-		$this->assertEquals("0", $contents->error->code, 'incident id is'.$incident_id);
+		$this->assertEquals("0", $contents->error->code);
 		
 		// Get random index for the payload data
 		$index = rand(0, count($contents->payload->incidents) - 1);
