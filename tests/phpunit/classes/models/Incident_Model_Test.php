@@ -21,7 +21,7 @@ class Incident_Model_Test extends PHPUnit_Framework_TestCase {
 	public function providerTestGetNeighbouringIncidents()
 	{
 		return array(array(
-			testutils::get_random_id('incident', 'WHERE incident_active = 1 LIMIT 10'),
+			testutils::get_random_id('incident', 'WHERE incident_active = 1'),
 			(Incident_Model::get_total_reports(TRUE)-1)
 		));
 	}
