@@ -626,7 +626,16 @@ class download_Core {
 		return $text;
 	}
 	
-	private static function generate_tags( $writer, $object_map, $elements)
+	/**
+	 * Given an XMLWriter instance, an associative array map and 
+	 * array of attribute/element tags to match with the array map,
+	 * generate element/attribute tags
+	 * @param XMLWriter object $writer
+	 * @param Associative array map $object_map
+	 * @param array $elements
+	 *
+	 */
+	public static function generate_tags( $writer, $object_map, $elements)
 	{
 		foreach ($elements as $element)
 		{	
@@ -648,16 +657,24 @@ class download_Core {
 	}
 	
 	/**
-	 * TODO: Review docs for this method
 	 * Given an ORM object and an associative array, generates and returns
 	 * an associative array with the corresponding values from the ORM object
-	 * TODO: Give an example
+	 * e.g given ORM Object Incident with id = 1 and title = 'Test Incident'
+	 * Pass associative array $map = array(
+	 *									'attributes' => array('id' => 'id'),
+	 *									'elements' => array('title' => 'incident_title')
+	 *									)
+	 *
+	 * Associative array $returned = array(
+	 *									'attributes' => array('id' => 1),
+	 *									'elements' => array('title' => 'Test Incident')
+	 * 									)
 	 *
 	 * @param object $object
 	 * @param array $map 
 	 * @return array
 	 */
-	private static function generate_element_attribute_map($object, $map)
+	public static function generate_element_attribute_map($object, $map)
 	{
 		$output_map = array(
 			'elements' => array(),
