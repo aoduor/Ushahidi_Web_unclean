@@ -364,7 +364,7 @@ class Incidents_Api_Object_Test extends PHPUnit_Framework_TestCase {
 	public function testGetIncidentsByMaxId()
 	{
 		// Get random incident id - it must be active and should not be first record in the table
-		$incident_id = testutils::get_random_id('incident', 'WHERE incident_active = 1 AND id NOT IN(SELECT * FROM (SELECT id from incident ORDER BY id ASC LIMIT 1) as first_id)');
+		$incident_id = testutils::get_random_id('incident', 'WHERE incident_active = 1 AND id NOT IN(SELECT * FROM (SELECT id from incident where incident_active = 1 ORDER BY id ASC LIMIT 1) as first_id)');
 		
 		// HTTP GET data
 		$_GET = array('task' => 'incidents', 'by' => 'maxid', 'id'=> $incident_id);
