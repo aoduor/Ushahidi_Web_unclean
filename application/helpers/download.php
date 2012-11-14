@@ -8,6 +8,58 @@
  * @license	   http://www.ushahidi.com/license.html
  */
 class download_Core {
+	/**
+	 * Validation of form fields
+	 *
+	 * @param array $post Values to be validated
+	 */
+	public static function validate(array & $post)
+	{
+		// Exception handling
+		if ( ! isset($post) OR ! is_array($post))
+			return FALSE;
+		
+		// Create validation object
+		$post = Validation::factory($post)
+				->pre_filter('trim', TRUE)
+				->add_rules('format','required')
+				->add_rules('data_active.*','required','numeric','between[0,1]')
+				->add_rules('data_verified.*','required','numeric','between[0,1]')
+				->add_rules('data_include.*','numeric','between[1,7]')
+				->add_rules('from_date','date_mmddyyyy')
+				->add_rules('to_date','date_mmddyyyy');
+				
+		// Validate the report dates, if included in report filter
+		if (!empty($post->from_date) OR !empty($post->to_date))
+		{
+			// Valid FROM Date?
+			if (empty($post->from_date) OR (strtotime($post->from_date) > strtotime("today")))
+			{
+				$post->add_error('from_date','range');
+			}
+
+			// Valid TO date?
+			if (empty($post->to_date) OR (strtotime($post->to_date) > strtotime("today")))
+			{
+				$post->add_error('to_date','range');
+			}
+
+			// TO Date not greater than FROM Date?
+			if (strtotime($post->from_date) > strtotime($post->to_date))
+			{
+				$post->add_error('to_date','range_greater');
+			}
+		}
+			
+		// Make sure valid format is passed
+		if ($post->format !='csv' AND $post->format !='xml')
+		{
+			$post->add_error('format','valid');
+		}	
+				
+		// Return
+		return $post->validate();
+	}
 	
 	/**
 	 * Download Reports in CSV format
@@ -229,9 +281,7 @@ class download_Core {
 		// Forms element
 		$form_elements = array('active', 'title', 'description');
 		
-		/* Custom fields element/attribute maps */
-		// Field Map
-		
+		/* Custom fields element/attribute maps */	
 		// Field elements
 		$form_field_elements = array('type', 'required', 'visible-by', 'submit-by', 'datatype', 'hidden', 'name', 'default');
 		
@@ -320,19 +370,22 @@ class download_Core {
 					foreach ($categories as $category)
 					{
 						// Begin individual category tag	
-						$writer->startElement('category');
-						
-						// Category's parent
-						$parent = ORM::factory('category', $category->parent_id);	
+						$writer->startElement('category');	
 						
 						// Generate category element map
 						$category_element_map = self::generate_element_attribute_map($category, $category_map);
 						
-						// If parent category exists
-						if ($parent->loaded)
+						if ($category->parent_id > 0)
 						{
-							// Add to array of category_element_map for purposes of generating tags
-							$category_element_map['elements']['parent'] = $parent->category_title;
+							// Category's parent
+							$parent = ORM::factory('category', $category->parent_id);
+						
+							// If parent category exists
+							if ($parent->loaded)
+							{
+								// Add to array of category_element_map for purposes of generating tags
+								$category_element_map['elements']['parent'] = $parent->category_title;
+							}
 						}
 						
 						// Generate individual category tags						
@@ -408,8 +461,7 @@ class download_Core {
 													'visible-by' => $field['field_ispublic_visible'],
 													'submit-by' => $field['field_ispublic_submit']
 													),
-												'elements' => array(
-													)
+												'elements' => array()
 												);
 								
 							/* Get custom form field options */

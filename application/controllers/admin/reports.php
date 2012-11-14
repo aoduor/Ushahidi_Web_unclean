@@ -863,50 +863,10 @@ class Reports_Controller extends Admin_Controller {
 		if ($_POST)
 		{
 			// Instantiate Validation, use $post, so we don't overwrite $_POST fields with our own things
-			$post = Validation::factory($_POST);
-
-			 //	Add some filters
-			$post->pre_filter('trim', TRUE);
-
-			// Add some rules, the input field, followed by a list of checks, carried out in order
-			$post->add_rules('format','required');
-			$post->add_rules('data_active.*','required','numeric','between[0,1]');
-			$post->add_rules('data_verified.*','required','numeric','between[0,1]');
-			//$post->add_rules('data_include.*','numeric','between[1,5]');
-			$post->add_rules('data_include.*','numeric','between[1,7]');
-			$post->add_rules('from_date','date_mmddyyyy');
-			$post->add_rules('to_date','date_mmddyyyy');
-
-			// Validate the report dates, if included in report filter
-			if (!empty($_POST['from_date']) OR !empty($_POST['to_date']))
-			{
-				// Valid FROM Date?
-				if (empty($_POST['from_date']) OR (strtotime($_POST['from_date']) > strtotime("today")))
-				{
-					$post->add_error('from_date','range');
-				}
-
-				// Valid TO date?
-				if (empty($_POST['to_date']) OR (strtotime($_POST['to_date']) > strtotime("today")))
-				{
-					$post->add_error('to_date','range');
-				}
-
-				// TO Date not greater than FROM Date?
-				if (strtotime($_POST['from_date']) > strtotime($_POST['to_date']))
-				{
-					$post->add_error('to_date','range_greater');
-				}
-			}
-			
-			// Make sure valid format is passed
-			if ($_POST['format'] !='csv' AND $_POST['format'] !='xml')
-			{
-				$post->add_error('format','valid');
-			}
+			$post = array_merge($_POST, $_FILES);
 
 			// Test to see if things passed the rule checks
-			if ($post->validate(TRUE))
+			if (download::validate($post))
 			{
 				// Set filter
 				$filter = '( ';
