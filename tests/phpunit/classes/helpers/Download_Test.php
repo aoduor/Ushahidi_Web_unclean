@@ -40,29 +40,29 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 		// Category map
 		$category_map = array(
-						'attributes' => array(
-							'color' => 'category_color',
-							'visible' => 'category_visible',
-							'trusted' => 'category_trusted'
-						),
-						'elements' => array(
-							'title' => 'category_title',
-							'description' => 'category_description'
-						)
-					);
+			'attributes' => array(
+				'color' => 'category_color',
+				'visible' => 'category_visible',
+				'trusted' => 'category_trusted'
+			),
+			'elements' => array(
+				'title' => 'category_title',
+				'description' => 'category_description'
+			)
+		);
 
 		// Expected category array map
 		$category_element_map = array(
-								'attributes' => array(
-									'color' => $category->category_color,
-									'visible' => $category->category_visible,
-									'trusted' => $category->category_trusted
-								),
-								'elements' => array(
-									'title' => $category->category_title,
-									'description' => $category->category_description
-								)
-							);
+			'attributes' => array(
+				'color' => $category->category_color,
+				'visible' => $category->category_visible,
+				'trusted' => $category->category_trusted
+			),
+			'elements' => array(
+				'title' => $category->category_title,
+				'description' => $category->category_description
+			)
+		);
 							
 		/* Category translation Element/Attribute maps */
 		// Translation ORM Object
@@ -70,25 +70,25 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 		// Translation map
 		$translation_map = array(
-							'attributes' => array(
-								'locale' => 'locale',
-							),
-							'elements' => array(
-								'transtitle' => 'category_title',
-								'transdescription' => 'category_description'
-							)
-						);
+			'attributes' => array(
+				'locale' => 'locale',
+			),
+			'elements' => array(
+				'transtitle' => 'category_title',
+				'transdescription' => 'category_description'
+			)
+		);
 
 		// Expected translation array map
 		$translation_element_map = array(
-									'attributes' => array(
-										'locale' => $translation->locale,
-									),
-									'elements' => array(
-										'transtitle' => $translation->category_title,
-										'transdescription' => $translation->category_description
-									)
-								);
+			'attributes' => array(
+				'locale' => $translation->locale,
+			),
+			'elements' => array(
+				'transtitle' => $translation->category_title,
+				'transdescription' => $translation->category_description
+			)
+		);
 		
 		/* Form element/attribute maps */
 		// Form ORM Object
@@ -96,25 +96,25 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 		// Forms map
 		$form_map = array(
-					'attributes' => array(
-						'active' => 'form_active'
-						),
-					'elements' => array(
-						'title' => 'form_title',
-						'description' => 'form_description'
-						)
-					);
+			'attributes' => array(
+				'active' => 'form_active'
+				),
+			'elements' => array(
+				'title' => 'form_title',
+				'description' => 'form_description'
+				)
+			);
 						
 		// Expected form array map
 		$form_element_map = array(
-							'attributes' => array(
-								'active' => $form->form_active
-							),
-							'elements' => array(
-								'title' => $form->form_title,
-								'description' => $form->form_description
-							)
-						);
+			'attributes' => array(
+				'active' => $form->form_active
+			),
+			'elements' => array(
+				'title' => $form->form_title,
+				'description' => $form->form_description
+			)
+		);
 		
 		/* Reports element/attribute maps */
 		// Report ORM Object
@@ -122,35 +122,35 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 		// Report map
 		$report_map = array(
-						'attributes' => array(
-							'id' => 'id',
-							'approved' => 'incident_active',
-							'verified' => 'incident_verified',
-							'mode' => 'incident_mode',
-						),
-						'elements' => array(
-							'title' => 'incident_title',
-							'date' => 'incident_date',
-							'dateadd' => 'incident_dateadd',
-							'description' => 'incident_description'
-						)
-					);
+			'attributes' => array(
+				'id' => 'id',
+				'approved' => 'incident_active',
+				'verified' => 'incident_verified',
+				'mode' => 'incident_mode',
+			),
+			'elements' => array(
+				'title' => 'incident_title',
+				'date' => 'incident_date',
+				'dateadd' => 'incident_dateadd',
+				'description' => 'incident_description'
+			)
+		);
 					
 		// Expected report array map
 		$report_element_map = array(
-								'attributes' => array(
-									'id' => $incident->id,
-									'approved' => $incident->incident_active,
-									'verified' => $incident->incident_verified,
-									'mode' => $incident->incident_mode,
-								),
-								'elements' => array(
-									'title' => $incident->incident_title,
-									'date' => $incident->incident_date,
-									'dateadd' => $incident->incident_dateadd,
-									'description' => $incident->incident_description
-								)
-							);
+			'attributes' => array(
+				'id' => $incident->id,
+				'approved' => $incident->incident_active,
+				'verified' => $incident->incident_verified,
+				'mode' => $incident->incident_mode,
+			),
+			'elements' => array(
+				'title' => $incident->incident_title,
+				'date' => $incident->incident_date,
+				'dateadd' => $incident->incident_dateadd,
+				'description' => $incident->incident_description
+			)
+		);
 		
 		/* Report Location */
 		// Report location ORM object
@@ -158,23 +158,23 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 		// Location Map
 		$location_map = array(
-						'attributes' => array(),
-						'elements' => array(
-							'name' => 'location_name',
-							'longitude' => 'longitude',
-							'latitude' => 'latitude'		
-						)
-					);
+			'attributes' => array(),
+			'elements' => array(
+				'name' => 'location_name',
+				'longitude' => 'longitude',
+				'latitude' => 'latitude'		
+			)
+		);
 
 		// Expected location array map
 		$location_element_map = array(
-								'attributes' => array(),
-								'elements' => array(
-									'name' => $location->location_name,
-									'longitude' => $location->longitude,
-									'latitude' => $location->latitude		
-								)
-							);
+			'attributes' => array(),
+			'elements' => array(
+				'name' => $location->location_name,
+				'longitude' => $location->longitude,
+				'latitude' => $location->latitude		
+			)
+		);
 								
 		/* Report Media */
 		// Report Media ORM Object
@@ -182,23 +182,23 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 		// Media Map
 		$media_map = array(
-						'attributes' => array(
-							'type' => 'media_type',
-							'active' => 'media_active',
-							'date' => 'media_date'
-						),
-						'elements' => array()
-					);
+			'attributes' => array(
+				'type' => 'media_type',
+				'active' => 'media_active',
+				'date' => 'media_date'
+			),
+			'elements' => array()
+		);
 
 		// Expected media array map
 		$media_element_map = array(
-							'attributes' => array(
-								'type' => $media->media_type,
-								'active' => $media->media_active,
-								'date' => $media->media_date
-							),
-							'elements' => array()
-						);
+			'attributes' => array(
+				'type' => $media->media_type,
+				'active' => $media->media_active,
+				'date' => $media->media_date
+			),
+			'elements' => array()
+		);
 		
 		/* Report personal info */
 		// Personal info ORM Object
@@ -206,23 +206,23 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 		// Personal info map
 		$person_map = array(
-						'attributes' => array(),
-						'elements' => array(
-							'firstname' => 'person_first',
-							'lastname' => 'person_last',
-							'email' => 'person_email'	
-						)
-					);
+			'attributes' => array(),
+			'elements' => array(
+				'firstname' => 'person_first',
+				'lastname' => 'person_last',
+				'email' => 'person_email'	
+			)
+		);
 		
 		// Expected personal info array map
 		$person_element_map = array(
-								'attributes' => array(),
-								'elements' => array(
-									'firstname' => $person->person_first,
-									'lastname' => $person->person_last,
-									'email' => $person->person_email	
-								)
-							);		
+			'attributes' => array(),
+			'elements' => array(
+				'firstname' => $person->person_first,
+				'lastname' => $person->person_last,
+				'email' => $person->person_email	
+			)
+		);		
 		
 		/* Incident Categories */
 		// Incident Category ORM Object
@@ -234,19 +234,19 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 								
 		// Incident Category map
 		$incident_cat_map = array(
-							'attributes' => array(),
-							'elements' => array(
-								'category' => 'category_title',
-							)
-						);
+			'attributes' => array(),
+			'elements' => array(
+				'category' => 'category_title',
+			)
+		);
 		
 		// Expected incident category array Map
 		$incident_cat_element_map = array(
-									'attributes' => array(),
-									'elements' => array(
-										'category' => $incident_cat->category_title,
-									)
-								);							
+			'attributes' => array(),
+			'elements' => array(
+				'category' => $incident_cat->category_title,
+			)
+		);							
 							
 		return array(
 			array($category_map, $category_element_map, $category),
