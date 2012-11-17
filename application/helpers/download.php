@@ -622,7 +622,7 @@ class download_Core {
 						case 6:
 						
 						// Report Fields
-						$customresponses = customforms::get_custom_form_fields($incident->id,'',false);
+						$customresponses = customforms::get_custom_form_fields($incident->id,$incident->form_id,false);
 						if ( ! empty($customresponses))
 						{
 							$writer->startElement('customfields');

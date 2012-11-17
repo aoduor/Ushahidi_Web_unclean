@@ -765,11 +765,48 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 			/* Custom response check */
 			$custom_responses_element = $report_element->item(0)->getElementsByTagName('customfields');
+			$customresponses = customforms::get_custom_form_fields($incident->id,$incident->form_id,false);
+			$response_count = count($customresponses);
+			$response_index = rand(1, $response_count-1);
 			
 			// Include custom fields option selected?
 			if (in_array(6, $this->post['data_include']))
 			{
+				$this->assertGreaterThan(0, $custom_responses_element->length, "Report custom responses element should exist");
 				
+				// Grab contents of <field> element
+				$field_element = $custom_responses_element->item(0)->getElementsByTagName('field');
+				
+				// If we have custom field responses for this incident
+				if ($response_count > 0)
+				{
+					// Pick a random custom response
+					$this_response = $customresponses[$response_index];
+		
+					// Make sure a form_response has actually been provided
+					if ($this_response['field_response'] != '')
+					{
+						// Make sure the <field> element exists
+						$this->assertNotNull($field_element->item($response_index-1), 'Custom Field response element should exist');
+					
+						// Test Field Name
+						$field_name = xml::get_node_text($field_element->item($response_index-1), 'name', FALSE);
+						$this->assertEquals($this_response['field_name'], $field_name, 'Response field name does not match/attribute does not exist');
+				
+						// Test Field Response
+						$response = xml::get_node_text($custom_responses_element->item($response_index-1), 'field');
+						$this->assertEquals($this_response['field_response'], $response, 'Custom response does not match/element does not exist');
+					}
+	
+					else
+					{
+						$this->assertNull($field_element->item($response_index-1), 'Custom Field response element should NOT exist');
+					}
+				}
+				else
+				{
+					$this->assertEquals(0, $field_element->length, 'Custom Field response element should NOT exist');
+				}	
 			}
 			else
 			{
