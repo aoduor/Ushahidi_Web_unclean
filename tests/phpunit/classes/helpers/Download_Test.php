@@ -9,7 +9,7 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 			'format' =>'xml',
 			'data_active'   => array(0, 1),
 			'data_verified'   => array(0, 1),
-			'data_include' => array( 4, 5),
+			'data_include' => array(1, 2, 3, 4, 5, 6),
 			'from_date'	   => '',
 			'to_date'	   => '',
 		);
