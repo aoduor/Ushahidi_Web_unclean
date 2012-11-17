@@ -348,7 +348,6 @@ class download_Core {
 												
 		/* Start Import Tag*/
 		$writer->startElement('import');
-		
 		foreach ($post->data_include as $item)
 		{
 			switch($item)
@@ -513,7 +512,7 @@ class download_Core {
 			
 		// If we have reports on this deployment
 		if (count($incidents) > 0)
-		{
+		{	
 			foreach ($incidents as $incident)
 			{
 				// Start Individual report
@@ -531,6 +530,35 @@ class download_Core {
 				
 				// Generate report tags
 				xml::generate_tags($writer, $report_element_map, $report_elements);
+				
+				// Report Media
+				$reportmedia = $incident->media;
+						
+				if (count($reportmedia) > 0)
+				{
+					$writer->startElement('media');
+					foreach ($reportmedia as $media)
+					{
+						// Videos and news links only
+						if ($media->media_type == 2 OR $media->media_type == 4)
+						{
+							$writer->startElement('item');
+									
+							// Generate media elements map 
+							$media_element_map = xml::generate_element_attribute_map($media, $media_map);
+									
+							// Generate media elements
+							xml::generate_tags($writer, $media_element_map, $media_elements);
+									
+							$writer->endAttribute();
+							$writer->text($media->media_link);
+							
+							// Close item tag
+							$writer->endElement();
+						}
+					}
+					$writer->endElement();
+				}
 								
 				foreach($post->data_include as $item)
 				{
@@ -556,32 +584,6 @@ class download_Core {
 						// Close location tag
 						$writer->endElement();
 						break;
-
-						// Report Media
-						$reportmedia = $incident->media;
-					
-						if (count($reportmedia) > 0)
-						{
-							$writer->startElement('media');
-							foreach ($reportmedia as $media)
-							{
-								// Videos and news links only
-								if ($media->media_type == 2 OR $media->media_type == 4)
-								{
-									$writer->startElement('item');
-									
-									// Generate media elements map 
-									$media_element_map = xml::generate_element_attribute_map($media, $media_map);
-									
-									// Generate media elements
-									xml::generate_tags($writer, $media_element_map, $media_elements);
-									
-									// Close item tag
-									$writer->endElement();
-								}
-							}
-							$writer->endElement();
-						}
 
 						case 7:
 						

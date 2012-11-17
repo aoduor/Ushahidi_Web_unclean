@@ -662,7 +662,7 @@ class XMLImporter {
 						$new_location->location_name = $location_name ? $location_name : NULL;
 						$new_location->location_date = $this->time;
 						
-						// If longitude/latitude values are not present
+						// If longitude/latitude values are present
 						if ($latitude AND $longitude)
 						{
 							$new_location->latitude = $latitude ? $latitude: 0;

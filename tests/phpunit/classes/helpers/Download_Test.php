@@ -9,7 +9,7 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 			'format' =>'xml',
 			'data_active'   => array(0, 1),
 			'data_verified'   => array(0, 1),
-			'data_include' => array(1, 2, 3, 4, 5, 6),
+			'data_include' => array(1, 2, 3, 4, 5, 6, 7),
 			'from_date'	   => '',
 			'to_date'	   => '',
 		);
@@ -626,22 +626,113 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 			
 			/* Location Check */
 			$locations_element = $report_element->item(0)->getElementsByTagName('location');
+			$location = $incident->location;
+			
+			// Include location option has been selected
 			if (in_array(1, $this->post['data_include']))
 			{
+				// Make sure the <location> element exists
+				$this->assertGreaterThan(0, $locations_element->length, 'Report location element SHOULD exist');
 				
+				// Test location name
+				$location_name = xml::get_node_text($locations_element->item(0),'name');
+				$this->assertEquals($location->location_name, $location_name, 'Location name does not match/element does not exist');
+				
+				// Test Latitude
+				$latitude = xml::get_node_text($locations_element->item(0),'latitude');
+				$this->assertEquals($location->latitude, $latitude, 'Latitude does not match/element does not exist');
+				
+				// Test longitude
+				$longitude = xml::get_node_text($locations_element->item(0),'longitude');
+				$this->assertEquals($location->longitude, $longitude, 'Longitude does not match/element does not exist');
 			}
+			
 			else
 			{
 				$this->assertEquals(0, $locations_element->length, "Report location element should not exist");
 			}
 		
 			/* Media Check */
+			$incident_media = $incident->media;
+			$media_element = $report_element->item(0)->getElementsByTagName('media');
+			if (count($incident_media) > 0)
+			{
+				$media_count = count($incident_media);
+				$media_index = rand(0, $media_count-1);
+				
+				// Make sure the media element exists
+				$this->assertGreaterThan(0, $media_element->length, 'The media element SHOULD exist');
+				
+				// Grab contents of media <item> element
+				$media_item = $media_element->item(0)->getElementsByTagName('item');
+				
+				// Grab random individual media item
+				$this_media = $incident_media[$media_index];
+				
+				if ( $this_media->media_type == 2 OR $this_media->media_type == 4 )
+				{
+					// Make sure the <item> element exists
+					$this->assertEquals('item', $media_item->item($media_index)->tagName, 'The media item element SHOULD exist');
+			
+					// Test Media Type
+					$media_type = xml::get_node_text($media_item->item($media_index), 'type', FALSE);
+					$this->assertEquals($this_media->media_type, $media_type, 'Media type does not match/ attribute does not exist');
+			
+					// Test media active
+					$media_active = xml::get_node_text($media_item->item($media_index), 'active', FALSE);
+					$this->assertEquals($this_media->media_active, $media_active, 'Media active does not match/ attribute does not exist');
+			
+					// Test Media date
+					$media_date = xml::get_node_text($media_item->item($media_index), 'date', FALSE);
+					$this->assertEquals($this_media->media_date, $media_date, 'Media date does not match/ attribute does not exist');
+			
+					// Test media link
+					$media_link = xml::get_node_text($media_element->item(0), 'item');
+					$this->assertEquals($this_media->media_link, $media_link, 'Media link does not match/ element does not exist');
+				}
+				else
+				{
+					// Make sure the <item> element does NOT exists for this particular media item
+					$this->assertNull($media_item->item($media_index), 'The media item element SHOULD NOT exist');
+				}
+				
+			}
+			
+			else
+			{
+				// Make sure the media element does NOT exist
+				$this->assertEquals(0, $media_element->length, 'The media element should NOT exist');
+			}
 		
 			/* Personal info check */
 			$person_info_element = $report_element->item(0)->getElementsByTagName('personal-info');
+			$incident_person = $incident->incident_person;
+			
+			// Include personal info option selected?
 			if (in_array(7, $this->post['data_include']))
 			{
+				// If we actually have an incident_person for this report
+				if ($incident_person->loaded)
+				{
+					// Make sure the <personalinfo> element exists
+					$this->assertGreaterThan(0, $person_info_element->length, 'Report personal-info element SHOULD exist');
 				
+					// Test First Name
+					$firstname = xml::get_node_text($person_info_element->item(0), 'firstname');
+					$this->assertEquals($incident_person->person_first, $firstname, 'Person first name does not match/ element does not exist');
+				
+					// Test last name
+					$lastname = xml::get_node_text($person_info_element->item(0), 'lastname');
+					$this->assertEquals($incident_person->person_last, $lastname, 'Person last name does not match/ element does not exist');
+				
+					// Test Email
+					$email = xml::get_node_text($person_info_element->item(0), 'email');
+					$this->assertEquals($incident_person->person_email, $email, 'Person email does not match/ element does not exist');
+				}
+				else
+				{
+					$this->assertEquals(0, $person_info_element->length, "Report personal-info element should not exist");
+				}	
 			}
 			else
 			{
@@ -650,9 +741,22 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 			/* Incident Category check */
 			$report_cat_element = $report_element->item(0)->getElementsByTagName('reportcategories');
+			$incident_categories = $incident->incident_category;
+			$incident_cat_count = count($incident_categories);
+			$cat_index = rand(0, $incident_cat_count-1);
+			
+			// Include categories option selected?
 			if (in_array(3, $this->post['data_include']))
 			{
+				// Make sure the <reportcategories> element exists
+				$this->assertGreaterThan(0, $report_cat_element->length, "Report categories element should exist");
 				
+				// Pick a random incident category
+				$this_cat = $incident_categories[$cat_index];
+				
+				// Test incident_category title
+				$incident_cat = xml::get_node_text($report_cat_element->item($cat_index), 'category');
+				$this->assertEquals($this_cat->category->category_title, $incident_cat, 'Incident_category does not match/element does not exist');
 			}
 			else
 			{
@@ -661,6 +765,8 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 		
 			/* Custom response check */
 			$custom_responses_element = $report_element->item(0)->getElementsByTagName('customfields');
+			
+			// Include custom fields option selected?
 			if (in_array(6, $this->post['data_include']))
 			{
 				
