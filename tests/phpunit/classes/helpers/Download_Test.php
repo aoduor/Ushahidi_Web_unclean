@@ -2,7 +2,7 @@
 
 class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 	
-	protected function setUp()
+	public function setUp()
 	{
 		// Set up post variable
 		$this->post = array(
@@ -695,9 +695,9 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 					// Make sure the <item> element does NOT exists for this particular media item
 					$this->assertNull($media_item->item($media_index), 'The media item element SHOULD NOT exist');
 				}
-				
 			}
 			
+			// We have no media
 			else
 			{
 				// Make sure the media element does NOT exist
@@ -797,7 +797,8 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 						$response = xml::get_node_text($custom_responses_element->item($response_index-1), 'field');
 						$this->assertEquals($this_response['field_response'], $response, 'Custom response does not match/element does not exist');
 					}
-	
+					
+					// No field response exists
 					else
 					{
 						$this->assertNull($field_element->item($response_index-1), 'Custom Field response element should NOT exist');
