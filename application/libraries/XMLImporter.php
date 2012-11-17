@@ -131,9 +131,6 @@ class XMLImporter {
 	 */
 	public function import_xml($file)
 	{
-		// Load Database Library, for purposes of input sanitization
-		$this->db = new Database;
-		
 		/* For purposes of checking whether the data we're trying to import already exists */
 		// Pick out existing categories 
 		$this->existing_categories = ORM::factory('category')->select_list('category_title','id');
@@ -259,7 +256,7 @@ class XMLImporter {
 	 * @param DOMNodeList Object $categories
 	 * @return bool
 	 */
-	private function import_categories($categories)
+	public function import_categories($categories)
 	{
 		/* Import individual categories*/
 		foreach ($categories->getElementsByTagName('category') as $category)
@@ -268,10 +265,10 @@ class XMLImporter {
 			$this->totalcategories++;
 			
 			// Category Title
-			$cat_title = $this->get_node_text($category, 'title');
+			$cat_title = xml::get_node_text($category, 'title');
 			
 			// Category Description
-			$cat_description = $this->get_node_text($category, 'description');
+			$cat_description = xml::get_node_text($category, 'description');
 				
 			// If either the category title or description is not provided
 			if ( ! $cat_title OR  ! $cat_description )
@@ -287,7 +284,7 @@ class XMLImporter {
 				if ( ! isset($this->existing_categories[utf8::strtoupper($cat_title)]))
 				{
 					// Get category attributes
-					$cat_color = $this->get_node_text($category, 'color', FALSE);
+					$cat_color = xml::get_node_text($category, 'color', FALSE);
 					$cat_visible = $category->getAttribute('visible');
 					$cat_trusted = $category->getAttribute('trusted');
 					
@@ -296,7 +293,7 @@ class XMLImporter {
 					$parent = $category->getElementsByTagName('parent');
 					if ($parent->length > 0)
 					{
-						$cat_parent = $this->get_node_text($category, 'parent');
+						$cat_parent = xml::get_node_text($category, 'parent');
 						if ($cat_parent)
 						{
 							$parent_id = isset($this->existing_categories[utf8::strtoupper($cat_parent)])
@@ -308,7 +305,7 @@ class XMLImporter {
 					// Save the Category
 					$new_category = new Category_Model;
 					$new_category->category_title = $cat_title;
-					$new_category->category_description = $cat_description;
+					$new_category->category_description = $cat_description ? $cat_description : NULL;
 					$new_category->parent_id = isset($parent_id) ? $parent_id : 0;
 					$new_category->category_color = $cat_color ? $cat_color : '000000';
 					$new_category->category_visible = ( isset($cat_visible) AND in_array($cat_visible, $this->allowable)) ? $cat_visible : 1;
@@ -337,7 +334,7 @@ class XMLImporter {
 					foreach ($cat_translations->getElementsByTagName('translation') as $translation)
 					{
 						// Get Localization
-						$locale = $this->get_node_text($translation,'locale', FALSE);
+						$locale = xml::get_node_text($translation,'locale', FALSE);
 						
 						// Does the locale attribute exist in the document? And is it empty?
 						if ($locale)
@@ -352,10 +349,10 @@ class XMLImporter {
 							if (count($existing_translations) == 0)
 							{
 								// Get category title for this localization
-								$trans_title = $this->get_node_text($translation, 'transtitle');
+								$trans_title = xml::get_node_text($translation, 'transtitle');
 								
 								// Category Description
-								$trans_description = $this->get_node_text($translation, 'transdescription');
+								$trans_description = xml::get_node_text($translation, 'transdescription');
 								
 								// If we're missing the translated category title
 								if ( ! $trans_title)
@@ -403,7 +400,7 @@ class XMLImporter {
 	 * @param DOMNodeList Object $customforms
 	 * @return bool
 	 */
-	function import_customforms($customforms)
+	public function import_customforms($customforms)
 	{
 		$forms = $customforms->getElementsByTagName('form');
 		foreach ($forms as $form)
@@ -413,7 +410,7 @@ class XMLImporter {
 			$totalfields = 0;
 			
 			// Form Title
-			$title = $this->get_node_text($form, 'title');
+			$title = xml::get_node_text($form, 'title');
 			
 			// If the form title is missing
 			if ( ! $title)
@@ -434,7 +431,7 @@ class XMLImporter {
 					$active = (isset($form_active) AND in_array($form_active, $this->allowable))? $form_active : 1;
 					
 					// Form Description
-					$description = $this->get_node_text($form, 'description');
+					$description = xml::get_node_text($form, 'description');
 					
 					// Save it
 					$new_form = new Form_Model();
@@ -462,7 +459,7 @@ class XMLImporter {
 						$totalfields++;
 						
 						// Field Name
-						$name = $this->get_node_text($field, 'name');
+						$name = xml::get_node_text($field, 'name');
 					
 						// Field Type
 						$field_type = $field->getAttribute('type');
@@ -500,7 +497,7 @@ class XMLImporter {
 								$fielddefault = $field->getElementsByTagName('default');
 								if ($fielddefault->length > 0)
 								{		
-									$default = $this->get_node_text($field, 'default');
+									$default = xml::get_node_text($field, 'default');
 									$default_values = $default ? $default : NULL;
 								}
 								
@@ -550,7 +547,7 @@ class XMLImporter {
 											// No, none exists
 											if (count($existing_datatype) == 0)
 											{
-												$datatype = $this->get_node_text($field,'datatype', FALSE);
+												$datatype = xml::get_node_text($field,'datatype', FALSE);
 												$allowed_types = array('email', 'phonenumber', 'numeric', 'text');
 												$field_datatype = ($datatype AND in_array($datatype, $allowed_types))? $datatype : NULL;
 
@@ -620,7 +617,7 @@ class XMLImporter {
 	 * @param DOMNodeList Object $report
 	 * @return bool
 	 */
-	function import_reports($reports)
+	public function import_reports($reports)
 	{
 		/* Import individual reports */
 		foreach ($reports->getElementsByTagName('report') as $report)
@@ -647,13 +644,13 @@ class XMLImporter {
 					$report_location = $locations->item(0);
 					
 					// Location Name
-					$location_name = $this->get_node_text($report_location, 'name');
+					$location_name = xml::get_node_text($report_location, 'name');
 					
 					// Longitude
-					$longitude = $this->get_node_text($report_location, 'longitude');
+					$longitude = xml::get_node_text($report_location, 'longitude');
 					
 					// Latitude
-					$latitude = $this->get_node_text($report_location, 'latitude');
+					$latitude = xml::get_node_text($report_location, 'latitude');
 									
 					if ($location_name)
 					{
@@ -662,14 +659,14 @@ class XMLImporter {
 						
 						// Save the location
 						$new_location = new Location_Model();
-						$new_location->location_name = $location_name;
+						$new_location->location_name = $location_name ? $location_name : NULL;
 						$new_location->location_date = $this->time;
 						
 						// If longitude/latitude values are not present
 						if ($latitude AND $longitude)
 						{
-							$new_location->latitude = $latitude;
-							$new_location->longitude = $longitude;
+							$new_location->latitude = $latitude ? $latitude: 0;
+							$new_location->longitude = $longitude ? $longitude: 0;
 							
 						}
 						else
@@ -689,10 +686,10 @@ class XMLImporter {
 				
 				/* Step 2: Save Report */
 				// Report Title
-				$report_title = $this->get_node_text($report, 'title');
+				$report_title = xml::get_node_text($report, 'title');
 				
 				// Report Date
-				$report_date = $this->get_node_text($report, 'date');
+				$report_date = xml::get_node_text($report, 'date');
 				
 				// Missing report title or report date?
 				if ( ! $report_title OR ! $report_date)
@@ -724,7 +721,7 @@ class XMLImporter {
 					$report_mode = (isset($mode) AND in_array($mode, $allowed_modes)) ? $mode : 1;
 					
 					// Report Form
-					$report_form = $this->get_node_text($report,'form_id', FALSE);
+					$report_form = xml::get_node_text($report,'form_id', FALSE);
 					if ($report_form)
 					{
 						if (! isset($this->existing_forms[utf8::strtoupper($report_form)]))
@@ -739,10 +736,10 @@ class XMLImporter {
 					}
 					
 					// Report Date added
-					$dateadd = $this->get_node_text($report, 'dateadd');
+					$dateadd = xml::get_node_text($report, 'dateadd');
 					
 					// Report Description
-					$report_description = $this->get_node_text($report, 'description');
+					$report_description = xml::get_node_text($report, 'description');
 
 					$new_report = new Incident_Model();
 					$new_report->location_id = isset($new_location) ? $new_location->id : 0;
@@ -807,7 +804,7 @@ class XMLImporter {
 							foreach ($custom_fields as $field)
 							{
 								// Field Name
-								$field_name = $field->hasAttribute('name') ? $this->get_node_text($field, 'name', FALSE) : FALSE;
+								$field_name = $field->hasAttribute('name') ? xml::get_node_text($field, 'name', FALSE) : FALSE;
 								if ($field_name)
 								{
 									// If this field exists
@@ -918,13 +915,13 @@ class XMLImporter {
 						$report_info = $personal_info->item(0);
 
 						// First Name
-						$firstname = $this->get_node_text($report_info, 'firstname');
+						$firstname = xml::get_node_text($report_info, 'firstname');
 
 						// Last Name
-						$lastname = $this->get_node_text($report_info, 'lastname');
+						$lastname = xml::get_node_text($report_info, 'lastname');
 
 						// Email
-						$r_email = $this->get_node_text($report_info, 'email');	
+						$r_email = xml::get_node_text($report_info, 'email');	
 						$email = ($r_email AND valid::email($r_email)) ? $r_email : NULL;
 
 						$new_incident_person = new Incident_Person_Model();
@@ -934,8 +931,8 @@ class XMLImporter {
 						// Make sure that at least one of the personal info field entries is provided
 						if ($firstname OR $lastname OR $email != NULL)
 						{
-							$new_incident_person->person_first = $firstname;
-							$new_incident_person->person_last = $lastname;
+							$new_incident_person->person_first = $firstname ? $firstname: NULL;
+							$new_incident_person->person_last = $lastname ? $firstname: NULL;
 							$new_incident_person->person_email = $email;
 							$new_incident_person->save();
 
@@ -983,41 +980,6 @@ class XMLImporter {
 		$model->option_name = $option_name;
 		$model->option_value = $option_value;
 		$model->save();
-	}
-	
-	/**
-	 * Get node values from DOMNodeList element /attribute, and sanitize
-	 * @param DOMNodeList Object $node
-	 * @param string Element within DOMNodelist object $tag_name
-	 * @param boolean $element Set to FALSE if getting an attribute value
-	 * @return mixed String if the node value exists, FALSE otherwise
-	 */	
-	private function get_node_text($node, $tag_name, $element = TRUE)
-	{
-		$node_value = NULL;
-		try
-		{
-			// This is an element
-			if ($element)
-			{
-				$element = $node->getElementsByTagName($tag_name)->item(0);
-				$node_value = trim($this->db->escape_str($element->nodeValue));
-			}
-			
-			// This is an attribute
-			else
-			{
-				$attribute = $node->getAttribute($tag_name);
-				$node_value = trim($this->db->escape_str($attribute));
-			}
-		}
-		catch (Kohana_Exception $e)
-		{
-			Kohana::log("xml_upload_error", $e->getMessage());
-			return FALSE;
-		}
-		
-		return ! empty($node_value) ? $node_value : FALSE;		
 	}
 }
 ?>

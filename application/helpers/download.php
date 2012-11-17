@@ -207,13 +207,7 @@ class download_Core {
 		}
 		$report_csv = ob_get_clean();
 
-		// Output to browser
-		header("Content-type: text/x-csv");
-		header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
-		header("Content-Disposition: attachment; filename=" . time() . ".csv");
-		header("Content-Length: " . strlen($report_csv));
-		echo $report_csv;
-		exit;
+		return $report_csv;
 	}
 	
 	/**
@@ -226,9 +220,6 @@ class download_Core {
 	public static function download_xml($post, $incidents, $categories, $custom_forms)
 	{
 		// Adding XML Content
-		header('Content-type: text/xml; charset=UTF-8');
-		header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
-		header("Content-Disposition: attachment; filename=" . time() . ".xml");
 		$writer = new XMLWriter;
 		$writer->openMemory();
 		$writer->startDocument('1.0', 'UTF-8');
@@ -373,7 +364,7 @@ class download_Core {
 						$writer->startElement('category');	
 						
 						// Generate category element map
-						$category_element_map = self::generate_element_attribute_map($category, $category_map);
+						$category_element_map = xml::generate_element_attribute_map($category, $category_map);
 						
 						if ($category->parent_id > 0)
 						{
@@ -389,7 +380,7 @@ class download_Core {
 						}
 						
 						// Generate individual category tags						
-						self::generate_tags($writer, $category_element_map, $category_elements);
+						xml::generate_tags($writer, $category_element_map, $category_elements);
 
 						// Category Translation
 						$translations = ORM::factory('category_lang')->where('category_id', $category->id)->find_all();
@@ -404,10 +395,10 @@ class download_Core {
 								$writer->startElement('translation');
 								
 								// Generate translation element map
-								$translation_element_map = self::generate_element_attribute_map($translation, $translation_map); 
+								$translation_element_map = xml::generate_element_attribute_map($translation, $translation_map); 
 
 								// Generate translation tags
-								self::generate_tags($writer, $translation_element_map, $translation_elements);
+								xml::generate_tags($writer, $translation_element_map, $translation_elements);
 								
 								// End individual category translation tag
 								$writer->endElement();
@@ -435,65 +426,68 @@ class download_Core {
 				// If we have custom forms
 				if (count($custom_forms) > 0)
 				{
-					$forms = ORM::factory('form')->find_all();
-					foreach ($forms as $form)
+					foreach ($custom_forms as $form)
 					{	
 						// Custom Form element
 						$writer->startElement('form');
 						
 						// Generate form elements map
-						$form_element_map = self::generate_element_attribute_map($form, $form_map);
+						$form_element_map = xml::generate_element_attribute_map($form, $form_map);
 						
 						// Generate form element tags
-						self::generate_tags($writer, $form_element_map, $form_elements);
+						xml::generate_tags($writer, $form_element_map, $form_elements);
 					
 						// Get custom fields associated with this form
-						$customfields = customforms::get_custom_form_fields('',$form->id,false);
-						foreach ($customfields as $field)
+						$form_fields = customforms::get_custom_form_fields('',$form->id,'');
+						foreach ($form_fields as $field)
 						{
-							// Custom Form Fields
-							$writer->startElement('field');
+							// Make sure this custom form field belongs to the current form
+							if ($field['form_id'] == $form->id)
+							{
+								// Custom Form Fields
+								$writer->startElement('field');
 							
-							$form_field_map = array(
-												'attributes' => array(
-													'type' => $field['field_type'],
-													'required' => $field['field_required'],
-													'visible-by' => $field['field_ispublic_visible'],
-													'submit-by' => $field['field_ispublic_submit']
-													),
-												'elements' => array()
-												);
+								$form_field_map = array(
+													'attributes' => array(
+														'type' => $field['field_type'],
+														'required' => $field['field_required'],
+														'visible-by' => $field['field_ispublic_visible'],
+														'submit-by' => $field['field_ispublic_submit']
+														),
+													'elements' => array()
+													);
 								
-							/* Get custom form field options */
-							$options = ORM::factory('form_field_option')->where('form_field_id',$field['field_id'])->find_all();
-							foreach ($options as $option)
-							{
-								if ($option->option_name == 'field_datatype')
+								/* Get custom form field options */
+								$options = ORM::factory('form_field_option')->where('form_field_id',$field['field_id'])->find_all();
+								foreach ($options as $option)
 								{
-									// Data type i.e Free, Numeric, Email, Phone?
-									$form_field_map['attributes']['datatype'] = $option->option_value;
+									if ($option->option_name == 'field_datatype')
+									{
+										// Data type i.e Free, Numeric, Email, Phone?
+										$form_field_map['attributes']['datatype'] = $option->option_value;
+									}
+									if ($option->option_name == 'field_hidden')
+									{
+										// Hidden Field?
+										$form_field_map['attributes']['hidden'] = $option->option_value;
+									}
 								}
-								if ($option->option_name == 'field_hidden')
-								{
-									// Hidden Field?
-									$form_field_map['attributes']['hidden'] = $option->option_value;
-								}
-							}
 							
-							// Field name
-							$form_field_map['elements']['name'] = $field['field_name'];
+								// Field name
+								$form_field_map['elements']['name'] = $field['field_name'];
 
-							// Default Value
-							if ($field['field_default'] != '')
-							{
-								$form_field_map['elements']['default'] = $field['field_default'];
+								// Default Value
+								if ($field['field_default'] != '')
+								{
+									$form_field_map['elements']['default'] = $field['field_default'];
+								}
+	
+								// Generate custom fields tags
+								xml::generate_tags($writer, $form_field_map, $form_field_elements);
+	
+								// Close Custom form field element	
+								$writer->endElement();
 							}
-	
-							// Generate custom fields tags
-							self::generate_tags($writer, $form_field_map, $form_field_elements);
-	
-							// Close Custom form field element	
-							$writer->endElement();
 						} 
 				
 						// Close Custom Form Element
@@ -512,7 +506,7 @@ class download_Core {
 				break;
 			}
 		}
-				
+			
 		/* Start Reports Element*/
 		$writer->startElement('reports');
 		
@@ -526,7 +520,7 @@ class download_Core {
 				$writer->startElement('report');
 								
 				// Generate report map
-				$report_element_map = self::generate_element_attribute_map($incident, $report_map);
+				$report_element_map = xml::generate_element_attribute_map($incident, $report_map);
 				
 				// Form this incident belongs to?
 				$form = ORM::factory('form')->find($incident->form_id);
@@ -536,7 +530,7 @@ class download_Core {
 				$report_element_map['attributes']['form_id'] = $form_name;
 				
 				// Generate report tags
-				self::generate_tags($writer, $report_element_map, $report_elements);
+				xml::generate_tags($writer, $report_element_map, $report_elements);
 								
 				foreach($post->data_include as $item)
 				{
@@ -554,10 +548,10 @@ class download_Core {
 						$writer->startElement('location');
 						
 						// Generate location map
-						$location_map_element = self::generate_element_attribute_map($incident->location, $location_map);
+						$location_map_element = xml::generate_element_attribute_map($incident->location, $location_map);
 						
 						// Generate location tags
-						self::generate_tags($writer, $location_map_element, $location_elements);
+						xml::generate_tags($writer, $location_map_element, $location_elements);
 						
 						// Close location tag
 						$writer->endElement();
@@ -577,10 +571,10 @@ class download_Core {
 									$writer->startElement('item');
 									
 									// Generate media elements map 
-									$media_element_map = self::generate_element_attribute_map($media, $media_map);
+									$media_element_map = xml::generate_element_attribute_map($media, $media_map);
 									
 									// Generate media elements
-									self::generate_tags($writer, $media_element_map, $media_elements);
+									xml::generate_tags($writer, $media_element_map, $media_elements);
 									
 									// Close item tag
 									$writer->endElement();
@@ -598,10 +592,10 @@ class download_Core {
 							$writer->startElement('personal-info');
 							
 							// Generate incident person element map
-							$person_element_map = self::generate_element_attribute_map($incident_person, $person_map);
+							$person_element_map = xml::generate_element_attribute_map($incident_person, $person_map);
 							
 							// Generate incident person element tags
-							self::generate_tags($writer, $person_element_map, $person_elements);
+							xml::generate_tags($writer, $person_element_map, $person_elements);
 							
 							// Close personal info tag	
 							$writer->endElement();
@@ -615,10 +609,10 @@ class download_Core {
 						foreach($incident->incident_category as $category)
 						{
 							// Generate Incident Category Element Map
-							$incident_category_element_map = self::generate_element_attribute_map($category->category, $incident_category_map);
+							$incident_category_element_map = xml::generate_element_attribute_map($category->category, $incident_category_map);
 							
 							// Generate Incident Category Tags
-							self::generate_tags($writer, $incident_category_element_map, $incident_category_elements);
+							xml::generate_tags($writer, $incident_category_element_map, $incident_category_elements);
 						}
 						$writer->endElement();
 						break;
@@ -668,84 +662,14 @@ class download_Core {
 		$writer->endDocument();
 
 		// Print
-		echo $writer->outputMemory(TRUE);
-		exit;
+		return $writer->outputMemory(TRUE);
+		
 	}
 	
 	private static function _csv_text($text)
 	{
 		$text = stripslashes(htmlspecialchars($text));
 		return $text;
-	}
-	
-	/**
-	 * Given an XMLWriter instance, an associative array map and 
-	 * array of attribute/element tags to match with the array map,
-	 * generate element/attribute tags
-	 * @param XMLWriter object $writer
-	 * @param Associative array map $object_map
-	 * @param array $elements
-	 *
-	 */
-	public static function generate_tags( $writer, $object_map, $elements)
-	{
-		foreach ($elements as $element)
-		{	
-			// For Attributes
-			if (array_key_exists($element, $object_map['attributes']))
-			{
-				$writer->startAttribute($element);
-					$writer->text($object_map['attributes'][$element]);
-			}
-
-			// For elements
-			else if (array_key_exists($element, $object_map['elements']))
-			{
-				$writer->startElement($element);
-					$writer->text($object_map['elements'][$element]);
-				$writer->endElement();
-			}
-		}	
-	}
-	
-	/**
-	 * Given an ORM object and an associative array, generates and returns
-	 * an associative array with the corresponding values from the ORM object
-	 * e.g given ORM Object Incident with id = 1 and title = 'Test Incident'
-	 * Pass associative array $map = array(
-	 *									'attributes' => array('id' => 'id'),
-	 *									'elements' => array('title' => 'incident_title')
-	 *									)
-	 *
-	 * Associative array $returned = array(
-	 *									'attributes' => array('id' => 1),
-	 *									'elements' => array('title' => 'Test Incident')
-	 * 									)
-	 *
-	 * @param object $object
-	 * @param array $map 
-	 * @return array
-	 */
-	public static function generate_element_attribute_map($object, $map)
-	{
-		$output_map = array(
-			'elements' => array(),
-			'attributes' => array()
-		);
-		
-		// For each item in 'attributes' in the map, get the value from the (orm) object
-		foreach ($map['attributes'] as $attribute => $column)
-		{
-			$output_map['attributes'][$attribute] = $object->$column;
-		}
-		
-		// For each element in 'elements', get corresponding value from orm object
-		foreach ($map['elements'] as $element => $column)
-		{
-			$output_map['elements'][$element] = $object->$column;
-		}
-		
-		return $output_map;
 	}
 }
 ?>
