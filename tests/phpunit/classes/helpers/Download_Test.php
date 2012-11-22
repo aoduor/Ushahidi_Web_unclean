@@ -1,6 +1,20 @@
-<?php
+<?php defined('SYSPATH') or die('No direct script access');
 
-class Download_Helper_Test extends PHPUnit_Framework_TestCase{
+/**
+ * Unit tests for the XML Reports download via the Download helper
+ *
+ * PHP version 5
+ * LICENSE: This source file is subject to LGPL license 
+ * that is available through the world-wide-web at the following URI:
+ * http://www.gnu.org/copyleft/lesser.html
+ * @author	   Ushahidi Team <team@ushahidi.com> 
+ * @package    Ushahidi - http://source.ushahididev.com
+ * @module	   Unit Tests
+ * @copyright  Ushahidi - http://www.ushahidi.com
+ * @license    http://www.gnu.org/copyleft/lesser.html GNU Lesser General Public License (LGPL) 
+ */
+ 
+ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 	
 	public function setUp()
 	{
@@ -767,34 +781,37 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 			$custom_responses_element = $report_element->item(0)->getElementsByTagName('customfields');
 			$customresponses = customforms::get_custom_form_fields($incident->id,$incident->form_id,false);
 			$response_count = count($customresponses);
+			
+			// Setting the minimum to 1 as the custom responses array index begins from 1, and not 0
 			$response_index = rand(1, $response_count-1);
 			
 			// Include custom fields option selected?
 			if (in_array(6, $this->post['data_include']))
-			{
-				$this->assertGreaterThan(0, $custom_responses_element->length, "Report custom responses element should exist");
-				
-				// Grab contents of <field> element
-				$field_element = $custom_responses_element->item(0)->getElementsByTagName('field');
-				
+			{	
 				// If we have custom field responses for this incident
 				if ($response_count > 0)
 				{
+					// Make sure the <customfields> element exists
+					$this->assertGreaterThan(0, $custom_responses_element->length, "Report custom responses element should exist");
+					
 					// Pick a random custom response
 					$this_response = $customresponses[$response_index];
-		
+					
+					// Grab contents of <field> element
+					$field_element = $custom_responses_element->item(0)->getElementsByTagName('field');
+					
 					// Make sure a form_response has actually been provided
 					if ($this_response['field_response'] != '')
 					{
 						// Make sure the <field> element exists
 						$this->assertNotNull($field_element->item($response_index-1), 'Custom Field response element should exist');
-					
+						
 						// Test Field Name
 						$field_name = xml::get_node_text($field_element->item($response_index-1), 'name', FALSE);
 						$this->assertEquals($this_response['field_name'], $field_name, 'Response field name does not match/attribute does not exist');
 				
 						// Test Field Response
-						$response = xml::get_node_text($custom_responses_element->item($response_index-1), 'field');
+						$response = $field_element->item($response_index-1)->nodeValue;
 						$this->assertEquals($this_response['field_response'], $response, 'Custom response does not match/element does not exist');
 					}
 					
@@ -806,7 +823,7 @@ class Download_Helper_Test extends PHPUnit_Framework_TestCase{
 				}
 				else
 				{
-					$this->assertEquals(0, $field_element->length, 'Custom Field response element should NOT exist');
+					$this->assertEquals(0, $custom_responses_element->length, 'Custom Field response element should NOT exist');
 				}	
 			}
 			else
