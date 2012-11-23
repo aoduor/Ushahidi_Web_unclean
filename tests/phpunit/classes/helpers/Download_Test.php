@@ -892,8 +892,9 @@
 								':form_id' => $incident->form_id,
 								':incident_id' => $incident->id
 								));
+			
+			// Grab response count
 			$response_count = count($customresponses);
-			$response_index = rand(0, $response_count-1);
 			
 			// Include custom fields option selected?
 			if (in_array(6, $this->post['data_include']))
@@ -904,7 +905,8 @@
 					// Make sure the <customfields> element exists
 					$this->assertGreaterThan(0, $custom_responses_element->length, "Report custom responses element should exist");
 					
-					// Pick a random custom response
+					// Grab a random custom response by generating a random index to select based on field count
+					$response_index = rand(0, $response_count-1);
 					$this_response = $customresponses[$response_index];
 					
 					// Grab contents of <field> element
