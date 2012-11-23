@@ -39,7 +39,6 @@
 		$this->incident = ORM::factory('incident')->limit(1)->find_all();
 		
 		// Custom forms object : Limit it to one custom form only
-		//$this->custom_forms = ORM::factory('form')->limit(1)->find_all();
 		$this->custom_forms = ORM::factory('form')->join('form_field','form_field.form_id', 'form.id', 'inner')->limit(1)->find_all();
 	}
 	
@@ -416,11 +415,11 @@
 				$this->assertEquals($cat->category_color, $color, 'Category Color does not match/ Color attribute does not exist');
 				
 				// Test category Visible
-				$visible = xml::get_node_text($category_element->item(0), 'visible', FALSE);
+				$visible = $category_element->item(0)->getAttribute('visible');
 				$this->assertEquals($cat->category_visible, $visible, 'Category visible status does not match/attribute does not exist');
 				
 				// Test category Trusted
-				$trusted = xml::get_node_text($category_element->item(0), 'trusted', FALSE);
+				$trusted = $category_element->item(0)->getAttribute('trusted');
 				$this->assertEquals($cat->category_trusted, $trusted, 'Category trusted status does not match/attribute does not exist');
 				
 				// Test category Title
@@ -451,10 +450,8 @@
 				// If we actually have translations for this category
 				if ( $translation_count > 0)
 				{
-					// Translation index
+					// Pick out a random translation by generating a random index to select based on this count
 					$index = rand(0, $translation_count-1);
-						
-					// Pick out a random translation
 					$translation = $translations[$index];
 					
 					// Test to see if the translations element exists
@@ -536,7 +533,7 @@
 				$this->assertGreaterThan(0,$form_element->length, 'The "form" element does not exist for a deployment with forms');
 				
 				// Test Form active status
-				$active = xml::get_node_text($form_element->item(0), 'active', FALSE);
+				$active = $form_element->item(0)->getAttribute('active');
 				$this->assertEquals($form->form_active, $active, 'Form active status does not match/attribute does not exist');
 				
 				// Test Form title
@@ -548,7 +545,109 @@
 				$this->assertEquals($form->form_description, $description, 'Form description does not match/element does not exist');
 				
 				/* Custom fields check */
+				// Get custom fields associated with this form
+				$form_fields = ORM::factory('form_field')
+								->join('roles', 'roles.id', 'field_ispublic_visible', 'left')
+								->where('form_id', $form->id)
+								->orderby('field_position', 'ASC')
+								->find_all();
 				
+				// Get custom field count, 
+				$field_count = count($form_fields);
+				$field_elements = $form_element->item(0)->getElementsByTagName('field');
+				
+				if ($field_count > 0)
+				{
+					$this->assertGreaterThan(0, $field_elements->length, 'This form has form fields. Field element should exist');
+					
+					// Grab a random custom field by generating a random index to select based on field count
+					$field_index = rand(0, $field_count-1);
+					$field = $form_fields[$field_index];
+					
+					// Grab the random field's corresponding element in XML download text
+					$field_element = $field_elements->item($field_index);
+					
+					// Make sure this particular <field> element actually exists
+					$this->assertNotNull($field_element, 'The field element SHOULD exist');
+					
+					// Test field type
+					$type = $field_element->getAttribute('type');
+					$this->assertEquals($field->field_type, $type, 'Field type does not match/attribute does not exist');
+					
+					// Test field required
+					$required = $field_element->getAttribute('required');
+					$this->assertEquals($field->field_required, $required, 'Field required does not match/attribute does not exist');
+					
+					// Test field visibility status
+					$visible_by = $field_element->getAttribute('visible-by');
+					$this->assertEquals($field->field_ispublic_visible, $visible_by, 'Field visible status does not match/attribute does not exist');
+					
+					// Test field submit status
+					$submit_by = $field_element->getAttribute('submit-by');
+					$this->assertEquals($field->field_ispublic_submit, $submit_by, 'Field submit status does not match/attribute does not exist');
+					
+					// Test field options
+					// Check for field options
+					$options = ORM::factory('form_field_option')->where('form_field_id',$field->id)->find_all();
+					
+					// If this field has field options
+					if (count($options) > 0)
+					{
+						foreach ($options as $option)
+						{
+							// Test field datatype
+							if ($option->option_name == 'field_datatype')
+							{
+								// Make sure the datatype attribute exists
+								$this->assertEquals(TRUE, $field_element->hasAttribute('datatype'), 'Field datatype attribute should exist');
+								
+								$datatype = xml::get_node_text($field_element, 'datatype', FALSE);
+								$this->assertEquals($option->option_value, $datatype, 'Datatype options do not match/attribute does not exist');
+							}
+							
+							// Test field hidden
+							if ($option->option_name == 'field_hidden')
+							{
+								// Make sure the datatype attribute exists
+								$this->assertEquals(TRUE, $field_element->hasAttribute('hidden'), 'Field hidden attribute should exist');
+								
+								$hidden = $field_element->getAttribute('hidden');
+								$this->assertEquals($option->option_value, $hidden, 'Hidden options do not match/attribute does not exist');
+							}
+						}
+					}
+					
+					// Hidden/Datatype attributes should not exist
+					else
+					{
+						$this->assertEquals(FALSE, $field_element->hasAttribute('hidden'), 'Field has no hidden option');
+						$this->assertEquals(FALSE, $field_element->hasAttribute('datatype'), 'Field has no datatype option');
+					}
+					
+					// Test field name
+					$name = xml::get_node_text($field_element, 'name');
+					$this->assertEquals($field->field_name, $name, 'Field names do not match/element does not exist');
+					
+					// Test Field default
+					$default = xml::get_node_text($field_element, 'default');
+					
+					// If field does not have a default value
+					if ($field->field_default != '')
+					{
+						$this->assertEquals($field->field_default, $default, 'Field defaults so not match/element does not exist');
+					}
+					
+					// Field has a default value
+					else
+					{
+						$this->assertEquals(FALSE, $default, 'Field default does not exist for this field');
+					}	
+				}
+				
+				else
+				{
+					$this->assertEquals(0, $field_elements->length, 'This form has no form fields. Field element should NOT exist');
+				}
 			}
 		}
 	}
@@ -562,11 +661,10 @@
 	public function testCheckReportsXML(array $domnodes)
 	{
 		$d_reports = $domnodes[2];
+		
 		// Ensure that the DOMNodeList Object is not empty
-		if ($d_reports->length == 0)
-		{
-			$this->markTestSkipped('Reports element does not exist');
-		}
+		$this->assertGreaterThan(0, $d_reports->length, 'Reports Element MUST exist.');
+		
 		// Contents of <Reports> element
 		$reports_element = $d_reports->item(0);
 		
@@ -689,11 +787,11 @@
 					$this->assertEquals('item', $media_item->item($media_index)->tagName, 'The media item element SHOULD exist');
 			
 					// Test Media Type
-					$media_type = xml::get_node_text($media_item->item($media_index), 'type', FALSE);
+					$media_type = $media_item->item($media_index)->getAttribute('type');
 					$this->assertEquals($this_media->media_type, $media_type, 'Media type does not match/ attribute does not exist');
 			
 					// Test media active
-					$media_active = xml::get_node_text($media_item->item($media_index), 'active', FALSE);
+					$media_active = $media_item->item($media_index)->getAttribute('active');
 					$this->assertEquals($this_media->media_active, $media_active, 'Media active does not match/ attribute does not exist');
 			
 					// Test Media date
@@ -779,11 +877,23 @@
 		
 			/* Custom response check */
 			$custom_responses_element = $report_element->item(0)->getElementsByTagName('customfields');
-			$customresponses = customforms::get_custom_form_fields($incident->id,$incident->form_id,false);
+			$sql = "SELECT form_field.*, form_response.form_response
+					FROM form_field
+					LEFT JOIN roles ON (roles.id = field_ispublic_visible)
+					LEFT JOIN
+						form_response ON (
+							form_response.form_field_id = form_field.id AND
+							form_response.incident_id = :incident_id
+						)
+					WHERE form_id = :form_id "
+					. "ORDER BY field_position ASC";
+							
+			$customresponses = Database::instance()->query($sql, array(
+								':form_id' => $incident->form_id,
+								':incident_id' => $incident->id
+								));
 			$response_count = count($customresponses);
-			
-			// Setting the minimum to 1 as the custom responses array index begins from 1, and not 0
-			$response_index = rand(1, $response_count-1);
+			$response_index = rand(0, $response_count-1);
 			
 			// Include custom fields option selected?
 			if (in_array(6, $this->post['data_include']))
@@ -801,24 +911,24 @@
 					$field_element = $custom_responses_element->item(0)->getElementsByTagName('field');
 					
 					// Make sure a form_response has actually been provided
-					if ($this_response['field_response'] != '')
+					if ($this_response->form_response != '')
 					{
 						// Make sure the <field> element exists
-						$this->assertNotNull($field_element->item($response_index-1), 'Custom Field response element should exist');
+						$this->assertNotNull($field_element->item($response_index), 'Custom Field response element should exist');
 						
 						// Test Field Name
-						$field_name = xml::get_node_text($field_element->item($response_index-1), 'name', FALSE);
-						$this->assertEquals($this_response['field_name'], $field_name, 'Response field name does not match/attribute does not exist');
+						$field_name = xml::get_node_text($field_element->item($response_index), 'name', FALSE);
+						$this->assertEquals($this_response->field_name, $field_name, 'Response field name does not match/attribute does not exist');
 				
 						// Test Field Response
-						$response = $field_element->item($response_index-1)->nodeValue;
-						$this->assertEquals($this_response['field_response'], $response, 'Custom response does not match/element does not exist');
+						$response = $field_element->item($response_index)->nodeValue;
+						$this->assertEquals($this_response->form_response, $response, 'Custom response does not match/element does not exist');
 					}
 					
 					// No field response exists
 					else
 					{
-						$this->assertNull($field_element->item($response_index-1), 'Custom Field response element should NOT exist');
+						$this->assertNull($field_element->item($response_index), 'Custom Field response element should NOT exist');
 					}
 				}
 				else
@@ -834,4 +944,4 @@
 	}
 } 
 
- ?>
+?>
