@@ -14,8 +14,7 @@
  * @license    http://www.gnu.org/copyleft/lesser.html GNU Lesser General Public License (LGPL)
  *
  */
-class CSVImporter {
-	
+class CSVImporter {	
 	/**
 	 * Notices to be passed on successful data import
 	 * @var array
@@ -151,10 +150,16 @@ class CSVImporter {
 		if (count($this->incidents_added)) ORM::factory('incident')->delete_all($this->incidents_added);
 		if (count($this->categories_added)) ORM::factory('category')->delete_all($this->categories_added);
 		if (count($this->locations_added)) ORM::factory('location')->delete_all($this->locations_added);
+<<<<<<< HEAD:application/libraries/CSVImporter.php
 		if (count($this->incident_categories_added)) ORM::factory('incident_category')->delete_all($this->incident_categories_added);
 		if (count($this->incident_persons_added)) ORM::factory('incident_person')->delete_all($this->incident_persons_added);
 		if (count($this->incident_responses_added)) ORM::factory('form_response')->delete_all($this->incident_responses_added);
 		
+=======
+		if (count($this->incident_categories_added)) ORM::factory('location')->delete_all($this->incident_categories_added);
+		if (count($this->incident_persons_added)) ORM::factory('incident_person')->delete_all($this->incident_persons_added);
+		if (count($this->incident_responses_added)) ORM::factory('form_response')->delete_all($this->incident_responses_added);
+>>>>>>> 39a2f7d11c59630e1fb7b35220506d2d30b27d10:application/libraries/ReportsImporter.php
 	}
 	
 	/**
@@ -195,6 +200,7 @@ class CSVImporter {
 			$location_geocoded = Geocoder::geocode_location($location->location_name);
 			
 			// If we have LATITUDE and LONGITUDE use those
+<<<<<<< HEAD:application/libraries/CSVImporter.php
 			if ( isset($row['LATITUDE']) AND isset($row['LONGITUDE']) ) 
 			{
 				$location->latitude = isset($row['LATITUDE']) ? $row['LATITUDE'] : 0;
@@ -206,6 +212,18 @@ class CSVImporter {
 			{
 				$location->latitude = $location_geocoded ? $location_geocoded[1] : 0;
 				$location->longitude = $location_geocoded ? $location_geocoded[0] : 0;
+=======
+			if ( isset($row['LATITUDE']) AND isset($row['LONGITUDE']) ) {
+				$location->latitude = isset($row['LATITUDE']) ? $row['LATITUDE'] : '';
+				$location->longitude = isset($row['LONGITUDE']) ? $row['LONGITUDE'] : '';
+			// Geocode reports which don't have LATITUDE and LONGITUDE
+			} else {
+				$location_geocoded = map::geocode($location->location_name);
+				if ($location_geocoded) {
+					$location->latitude = $location_geocoded['latitude'];
+					$location->longitude = $location_geocoded['longitude'];
+				}
+>>>>>>> 39a2f7d11c59630e1fb7b35220506d2d30b27d10:application/libraries/ReportsImporter.php
 			}
 			$location->country_id = $location_geocoded ? $location_geocoded[2] : 0;
 			$location->location_date = $this->time;
@@ -242,8 +260,11 @@ class CSVImporter {
 			if(!empty($person->person_first) OR !empty($person->person_last) OR !empty($person->person_email))
 			{
 				$person->save();
+<<<<<<< HEAD:application/libraries/CSVImporter.php
 				
 				// Add to array of incident persons added
+=======
+>>>>>>> 39a2f7d11c59630e1fb7b35220506d2d30b27d10:application/libraries/ReportsImporter.php
 				$this->incident_persons_added[] = $person->id;
 			}
 			
@@ -385,6 +406,7 @@ class CSVImporter {
 							$form_response->form_response = $response;
 						}
 						
+<<<<<<< HEAD:application/libraries/CSVImporter.php
 						// If form_response is provided based on conditions set above, Save the form response
 						if ($form_response->form_response != '')
 						{
@@ -394,6 +416,12 @@ class CSVImporter {
 							$this->incident_responses_added[] = $form_response->id;
 						}
 					}
+=======
+						// Save the form response
+						$form_response->save();
+						$this->incident_responses_added[] = $form_response->id;
+					}	
+>>>>>>> 39a2f7d11c59630e1fb7b35220506d2d30b27d10:application/libraries/ReportsImporter.php
 				}	
 			}	
 		}
